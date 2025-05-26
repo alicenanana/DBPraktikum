@@ -1,76 +1,53 @@
-
-import com.opencsv.CSVReader;
-
 import java.io.FileReader;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import com.opencsv.CSVReader;
 
 public class ImportReviews {
     public static void main(String[] args) {
-        String jdbcUrl = "jdbc:postgresql://localhost:5432/postgres";
-        String dbUser = "postgres";
-        String dbPass = "postgres";
-        String csvPath = "data/reviews.csv";
+        String jdbcUrl = "jdbc:postgresql://localhost:5432/meine_media_store_db";
+        String username = "postgres";
+        String password = "postgres";
+        String csvFile = "data/reviews.csv";
 
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, dbUser, dbPass);
-                CSVReader reader = new CSVReader(new FileReader(csvPath))) {
+        try (
+                Connection conn = DriverManager.getConnection(jdbcUrl, username, password);
+                CSVReader reader = new CSVReader(new FileReader(csvFile));) {
+            String[] nextLine;
+            boolean firstLine = true;
 
-            conn.setAutoCommit(false);
-            String[] line;
-            int count = 0;
+            String sql = "INSERT INTO rezension (kunden_id, produktnr, punkte, kommentar) VALUES (?, ?, ?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(sql);
 
-            // Header überspringen
-            reader.readNext();
-
-            while ((line = reader.readNext()) != null) {
-                String produktId = line[0];
-                String username = line[1];
-                int punkte = Integer.parseInt(line[2]);
-                String text = line[3];
-
-                if (punkte < 1 || punkte > 5) {
-                    System.out.println("Überspringe ungültige Bewertung: " + punkte);
-                    continue;
+            while ((nextLine = reader.readNext()) != null) {
+                if (firstLine) {
+                    firstLine = false;
+                    continue; // skip header
                 }
 
-                // Kunde suchen oder anlegen
-                int kundenId = getOrCreateKundeId(conn, username);
+                try {
+                    String kundenId = nextLine[1]; // user (z.B. "A3IYJZGW3A4UVO")
+                    String produktNr = nextLine[2]; // product (z.B. "B00005RSCH")
+                    int punkte = Integer.parseInt(nextLine[3]); // rating
+                    String kommentar = nextLine[4]; // content
 
-                // Rezension einfügen
-                PreparedStatement stmt = conn.prepareStatement(
-                        "INSERT INTO rezension (produktnr, kunden_id, punkte, kommentar) VALUES (?, ?, ?, ?)");
-                stmt.setInt(1, Integer.parseInt(produktId));
-                stmt.setInt(2, kundenId);
-                stmt.setInt(3, punkte);
-                stmt.setString(4, text);
-                stmt.executeUpdate();
+                    stmt.setString(1, kundenId);
+                    stmt.setString(2, produktNr);
+                    stmt.setInt(3, punkte);
+                    stmt.setString(4, kommentar);
 
-                count++;
+                    stmt.executeUpdate();
+                } catch (Exception e) {
+                    System.err.println("❌ Fehler beim Einfügen: " + String.join(", ", nextLine));
+                    e.printStackTrace();
+                }
             }
 
-            conn.commit();
-            System.out.println(count + " Rezensionen importiert.");
+            System.out.println("✅ Import abgeschlossen.");
+
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private static int getOrCreateKundeId(Connection conn, String username) throws SQLException {
-        // Prüfen, ob Kunde bereits existiert
-        PreparedStatement select = conn.prepareStatement(
-                "SELECT kunden_id FROM kunde WHERE name = ?");
-        select.setString(1, username);
-        ResultSet rs = select.executeQuery();
-        if (rs.next()) {
-            return rs.getInt(1);
-        }
-
-        // Kunde anlegen, wenn nicht vorhanden
-        PreparedStatement insert = conn.prepareStatement(
-                "INSERT INTO kunde (name, adresse, kontonr) VALUES (?, '', ?) RETURNING kunden_id");
-        insert.setString(1, username);
-        insert.setString(2, "KNR" + System.currentTimeMillis()); // dummy kontonr
-        ResultSet newRs = insert.executeQuery();
-        newRs.next();
-        return newRs.getInt(1);
     }
 }
