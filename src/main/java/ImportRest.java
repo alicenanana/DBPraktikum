@@ -15,7 +15,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 public class ImportRest {
@@ -24,12 +23,11 @@ public class ImportRest {
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
-        String password = "Robin2504!";
+        String password = "postgres";
 
 
         // Leipzig
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
-            // Importiere alle XML-Dateien
 
             File xmlFile = new File("data", "leipzig_transformed.xml");
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
@@ -54,10 +52,7 @@ public class ImportRest {
 
                 //PGROUP
                 String pgroup = product.getAttribute("pgroup").trim();
-                if ("DVD".equalsIgnoreCase(pgroup)) {
-                System.out.println("✅ DVD gefunden: " + asin);
-                }
-                System.out.println("Verarbeite nun PGROUP: " + pgroup + " für ASIN: " + asin);
+                System.out.println("Verarbeite nun PGROUP: " + pgroup + " fuer ASIN: " + asin);
 
                 //Salesrank
                 int salesrank;
@@ -74,22 +69,22 @@ public class ImportRest {
                     title = "Unbekannter Titel"; 
                 }
                 
+                
                 //Preis
-                Element priceElement = (Element) product.getElementsByTagName("price").item(0);
-                double pricemult = Double.parseDouble(priceElement.getAttribute("mult"));
-                if (pricemult == 0) {
-                    pricemult = 0.1; 
+                double price = 0.0;
+                String pricestate = null, pricecurrency = null;
+                NodeList priceNodes = product.getElementsByTagName("price");
+                if (priceNodes.getLength() > 0) {
+                    Element priceElement = (Element) priceNodes.item(0);
+                    try {
+                        double mult = priceElement.hasAttribute("mult") ? Double.parseDouble(priceElement.getAttribute("mult")) : 0.01;
+                        int basePrice = Integer.parseInt(priceElement.getTextContent().trim());
+                        price = basePrice * mult;
+                        } catch (NumberFormatException ignored) {}
+                    pricestate = priceElement.getAttribute("state");
+                    pricecurrency = priceElement.getAttribute("currency");
                 }
-                
-                String pricestate = priceElement.getAttribute("state");
-                if (pricestate.isEmpty()) {
-                    pricestate = "Unknown"; 
-                }
-                String pricecurrency = priceElement.getAttribute("currency");
-                if (pricecurrency.isEmpty()) {
-                    pricecurrency = "Unavaiable"; 
-                }
-                
+
 
                 // Bild
                 String picture = product.getAttribute("picture"); 
@@ -105,9 +100,6 @@ public class ImportRest {
 
                 //ean
                 String ean = product.getAttribute("ean");     
-                if (pgroup.equals("DVD")) {
-                    System.out.println("DVD gefunden: " + ean);
-                }
 
                
                 // item einfügen
@@ -117,29 +109,25 @@ public class ImportRest {
                 psItem.setString(2, pgroup);
                 psItem.setString(3, title);
                 psItem.setInt(4, salesrank);
-                psItem.setDouble(5, pricemult);
+                psItem.setDouble(5, price);
                 psItem.setString(6, picture);
                 psItem.setString(7, detailPage);
                 psItem.setString(8, ean);
                 psItem.setString(9, pricestate);
                 psItem.setString(10, pricecurrency);
                 psItem.executeUpdate();
-                System.out.println("In Item eingefügt: " + asin);
 
                 switch (pgroup) {
                     case "Book":
                         insertBook(conn, product, asin);
-                        System.out.println("In Buch eingefügt: " + asin);
                         insertRest(conn, product, asin);
                         break;
                     case "DVD":
                         insertDVD(conn, product, asin);
-                        System.out.println("In DVD eingefügt: " + asin);
                         insertRest(conn, product, asin);
                         break;
-                    case "Music":
+                    case "MUSIC":
                         insertMusic(conn, product, asin);
-                        System.out.println("In Musik eingefügt: " + asin);
                         insertRest(conn, product, asin);
                         break;
                 }
@@ -151,10 +139,125 @@ public class ImportRest {
         }
 
 
+        // Dresden
+        try (Connection conn = DriverManager.getConnection(url, user, password)) {
 
-      
+            File xmlFile = new File("data", "dresden.xml");
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(xmlFile);
+            doc.getDocumentElement().normalize();
+
+            // Filtere nur die Haupt-<item>-Elemente (direkte Kinder des Wurzelelements)
+            NodeList allItems = doc.getElementsByTagName("item");
+            List<Element> productList = new ArrayList<>();
+            for (int i = 0; i < allItems.getLength(); i++) {
+                Element item = (Element) allItems.item(i);
+                // Prüfe, ob das Parent-Element das Wurzelelement ist (also KEIN <similars>-Kind)
+                if (item.getParentNode().equals(doc.getDocumentElement())) {
+                    productList.add(item);
+                }
+            }
+
+            for (int i = 0; i < productList.size(); i++) {
+            Element product = productList.get(i);
+            String asin = product.getAttribute("asin");
+            if (asin.isEmpty() || asin.length() > 20) continue;
+
+            //  PGROUP ermitteln
+            String pgroup = product.getAttribute("pgroup").trim();
+            if (pgroup.matches("(?i)AUDIO-CD|CD|MUSIKKASSETTE|VINYL  LP|Musical|Music")) {
+                pgroup = "Music";
+            } else if (pgroup.matches("(?i)DVD + CD|DVD")) {
+                pgroup = "DVD";
+            } else if (pgroup.matches("(?i)Buch|Book")) {
+                pgroup = "Book";
+            } else if (pgroup.isEmpty()) {
+                boolean hasTracks = product.getElementsByTagName("tracks").getLength() > 0;
+                boolean hasBookSpec = product.getElementsByTagName("bookspec").getLength() > 0;
+                boolean hasDvdSpec = product.getElementsByTagName("dvdspec").getLength() > 0;
+                boolean hasMusicSpec = product.getElementsByTagName("musicspec").getLength() > 0;
+                boolean hasAuthors = !getNamesForRole(product, "authors", "author").isEmpty();
+                boolean hasActors = !getNamesForRole(product, "actors", "actor").isEmpty();
+
+                if (hasBookSpec || hasAuthors) pgroup = "Book";
+                else if (hasDvdSpec || hasActors) pgroup = "DVD";
+                else if (hasMusicSpec || hasTracks) pgroup = "Music";
+                else pgroup = "Unknown";
+            }
+            System.out.println("Verarbeite nun PGROUP: " + pgroup + " fuer ASIN: " + asin);
+
+            String title = getText(product, "title");
+            if (title.isEmpty()) title = "Unbekannter Titel";
+
+            int salesrank = 0;
+            try {
+                salesrank = Integer.parseInt(product.getAttribute("salesrank"));
+            } catch (NumberFormatException ignored) {}
+
+            double price = 0.0;
+            String pricestate = null, pricecurrency = null;
+            NodeList priceNodes = product.getElementsByTagName("price");
+            if (priceNodes.getLength() > 0) {
+                Element priceElement = (Element) priceNodes.item(0);
+                try {
+                double mult = priceElement.hasAttribute("mult") ? Double.parseDouble(priceElement.getAttribute("mult")) : 0.01;
+                int basePrice = Integer.parseInt(priceElement.getTextContent().trim());
+                price = basePrice * mult;
+                } catch (NumberFormatException ignored) {}
+                pricestate = priceElement.getAttribute("state");
+                pricecurrency = priceElement.getAttribute("currency");
+            }
+
+            String picture = product.getAttribute("picture");
+            if (picture.isEmpty()) picture = "No Picture";
+
+            String detailPage = product.getAttribute("detailpage");
+            if (detailPage.isEmpty()) detailPage = "No Detail Page";
+
+            String ean = product.getAttribute("ean");
+
+            // --- In Datenbank einfügen ---
+            PreparedStatement psItem = conn.prepareStatement(
+                "INSERT INTO item (shop_id, asin, pgroup, title, salesrank, price, picture, detailpage," +
+                "ean, item_status, currency) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING"
+            );
+            psItem.setString(1, asin);
+            psItem.setString(2, pgroup);
+            psItem.setString(3, title);
+            psItem.setInt(4, salesrank);
+            psItem.setDouble(5, price);
+            psItem.setString(6, picture);
+            psItem.setString(7, detailPage);
+            psItem.setString(8, ean);
+            psItem.setString(9, pricestate);
+            psItem.setString(10, pricecurrency);
+            psItem.executeUpdate();
+
+            switch (pgroup) {
+                case "Book":
+                insertBook(conn, product, asin);
+                System.out.println("Buch eingefügt: " + asin);
+                insertRest(conn, product, asin);
+                break;
+                case "DVD":
+                insertDVD(conn, product, asin);
+                System.out.println("DVD eingefügt: " + asin);
+                insertRest(conn, product, asin);
+                break;
+                case "Music":
+                insertMusic(conn, product, asin);
+                System.out.println("Musik eingefügt: " + asin);
+                insertRest(conn, product, asin);
+                break;
+            }
+            }
+
+            System.out.println("Import abgeschlossen. Dresden");
+        } catch (Exception e) {
+            System.err.println("An error occurred: " + e.getMessage());
+        }
     }
-    
     /**
      * Fügt ein Buch in die Datenbank ein.
      * 
@@ -271,7 +374,7 @@ public class ImportRest {
             
         // Regioncode
         String regionStr = getText(dvdspecs, "regioncode");
-        int region = 0;
+        int region;
         try {
             region = Integer.parseInt(regionStr);
             } catch (NumberFormatException e) {
@@ -279,7 +382,7 @@ public class ImportRest {
             }
         // Laufzeit (runningtime!)
         String runtimeStr = getText(dvdspecs, "runningtime");
-        int runtime = 0;
+        int runtime;
         try {
             runtime = Integer.parseInt(runtimeStr);
         } catch (NumberFormatException e) {
@@ -308,7 +411,7 @@ public class ImportRest {
 
         // Theatr. Release
         String theatrReleaseStr = getText(dvdspecs, "theatr_release");
-        int theatr_elease = 0;
+        int theatr_elease;
         try {
             theatr_elease = Integer.parseInt(theatrReleaseStr);
             } catch (NumberFormatException e) {
@@ -327,7 +430,6 @@ public class ImportRest {
         ps.setInt(8, theatr_elease);
         ps.executeUpdate();
         }
-
 
     /**
      * Fügt Musik in die Datenbank ein.
@@ -539,8 +641,6 @@ public class ImportRest {
             }
         }
 
-
-
         //Audiotext (Mehrsprachige Angaben)
         NodeList audioTextList = product.getElementsByTagName("audiotext");
         for (int k = 0; k < audioTextList.getLength(); k++) {
@@ -554,24 +654,19 @@ public class ImportRest {
                 String langType = langElement.getAttribute("type");
                 String language = langElement.getTextContent().trim();
                 String audioFormat = formats.item(j).getTextContent().trim();
-                PreparedStatement psAudio = conn.prepareStatement("INSERT INTO audiotext (asin, lang_type, language, audioformat) VALUES (?, ?, ?, ?)");
-                psAudio.setString(1, asin);
-                psAudio.setString(2, langType);
-                psAudio.setString(3, language);
-                psAudio.setString(4, audioFormat);
+                PreparedStatement psAudio = conn.prepareStatement("INSERT INTO audiotext (lang_type, language, audioformat) VALUES (?, ?, ?)");
+                int audiotextId = getOrCreateAtext(conn, langType, language, audioFormat);
+                PreparedStatement psItemAudio = conn.prepareStatement("INSERT INTO item_audiotext (asin, audiotext_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                psAudio.setString(1, langType);
+                psAudio.setString(2, language);
+                psAudio.setString(3, audioFormat);
                 psAudio.executeUpdate();
+                psItemAudio.setString(1, asin);
+                psItemAudio.setInt(2, audiotextId);
+                psItemAudio.executeUpdate();
                 }
             }
-        }
-
-
-
-
-    
-    
-    
-    
-    
+        } 
     
     /**
     * Bekommt die ID eines Eintrags in der angegebenen Tabelle mit dem gegebenen Namen.
@@ -594,6 +689,27 @@ public class ImportRest {
             "INSERT INTO " + table + " (name) VALUES (?) RETURNING " + table + "_id"
         );
         psIns.setString(1, name);
+        rs = psIns.executeQuery();
+        rs.next();
+        return rs.getInt(1);
+    }
+    //(audiotext_id SERIAL PRIMARY KEY,lang_type VARCHAR(50),language VARCHAR(50),audioformat VARCHAR(100));
+    static int getOrCreateAtext(Connection conn, String langType, String language, String audioFormat) throws Exception {
+        PreparedStatement psSel = conn.prepareStatement(
+            "SELECT audiotext_id FROM audiotext WHERE lang_type = ? AND language = ? AND audioformat = ?"
+        );
+        psSel.setString(1, langType);
+        psSel.setString(2, language);
+        psSel.setString(3, audioFormat);
+        ResultSet rs = psSel.executeQuery();
+        if (rs.next()) return rs.getInt(1);
+
+        PreparedStatement psIns = conn.prepareStatement(
+            "INSERT INTO audiotext (lang_type, language, audioformat) VALUES (?, ?, ?) RETURNING audiotext_id"
+        );
+        psIns.setString(1, langType);
+        psIns.setString(2, language);
+        psIns.setString(3, audioFormat);
         rs = psIns.executeQuery();
         rs.next();
         return rs.getInt(1);
@@ -644,25 +760,6 @@ public class ImportRest {
         return "";
     }
 
-    /**
-     * bekommt eine Liste von Textinhalten aller Tags mit dem angegebenen Namen innerhalb des übergebenen Elements.
-     *
-     * @param product    Das Element, in dem nach den Tags gesucht wird
-     * @param tagName    Der Name des Tags, dessen Textinhalte extrahiert werden sollen
-     * @return Eine Liste von Strings, die die Textinhalte der gefundenen Tags enthalten
-     */
-    static List<String> getTextList(Element product, String tagName) {
-    NodeList nodeList = product.getElementsByTagName(tagName);
-    List<String> values = new ArrayList<>();
-    for (int i = 0; i < nodeList.getLength(); i++) {
-        Node node = nodeList.item(i);
-        if (node.getTextContent() != null && !node.getTextContent().trim().isEmpty()) {
-            values.add(node.getTextContent().trim());
-            }
-        }
-    return values;
-    }
-    
     /**
      * bekommt eine Liste von ähnlichen Produkten aus dem angegebenen Produkt-Element.
      * 
