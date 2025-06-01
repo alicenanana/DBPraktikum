@@ -30,7 +30,7 @@ format VARCHAR(100),regioncode INT,releasedate DATE,runningtime INT,
 theatr_release INT,upc VARCHAR(60));
 
 -- Tracks (für Music-CDs)
-CREATE TABLE track (track_id SERIAL PRIMARY KEY,title TEXT);
+CREATE TABLE track (track_id SERIAL PRIMARY KEY,name TEXT);
 
 CREATE TABLE item_track (asin VARCHAR(40) REFERENCES item(asin),
 track_id INT REFERENCES track(track_id),track_no INT,PRIMARY KEY (asin, track_id));
