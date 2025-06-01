@@ -540,9 +540,13 @@ public class ImportRest {
         String weight = packageele.getAttribute("weight");
         String height = packageele.getAttribute("height");
         String length = packageele.getAttribute("length");
-        if (weight.isEmpty() || height.isEmpty() || length.isEmpty()) {
+        if (weight.isEmpty()) {
             weight = "/";
+        }
+        if (height.isEmpty()) {
             height = "/";
+        }
+        if (length.isEmpty()) {
             length = "/";
         }
 
