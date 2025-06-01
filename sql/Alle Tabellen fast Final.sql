@@ -83,8 +83,8 @@ CREATE TABLE kategorie (
     eltern_id INT REFERENCES kategorie(kategorie_id)
 );
 
-CREATE TABLE produkt_kategorie (
-    produktnr VARCHAR REFERENCES produkt(produktnr) ON DELETE CASCADE, --stimmt das denn?
-    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE CASCADE,
-    PRIMARY KEY (produktnr, kategorie_id)
+CREATE TABLE item_kategorie (
+    asin VARCHAR(40) REFERENCES item(asin),
+    kategorie_id INT REFERENCES kategorie(kategorie_id),
+    PRIMARY KEY (asin, kategorie_id)
 );
