@@ -171,3 +171,41 @@ CREATE TABLE illegal_data (
     error_message TEXT,
     import_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE kunde (
+    kunden_id SERIAL PRIMARY KEY,
+    name TEXT,
+    adresse TEXT,
+    konto_nr TEXT
+);
+
+CREATE TABLE bestellung (
+    bestellung_id SERIAL PRIMARY KEY,
+    kunden_id INT REFERENCES kunde(kunden_id),
+    kaufdatum TIMESTAMP
+);
+
+CREATE TABLE bestellposition (
+    bestellung_id INT REFERENCES bestellung(bestellung_id),
+    asin VARCHAR(40) REFERENCES item(asin),
+    PRIMARY KEY (bestellung_id, asin)
+);
+
+CREATE TABLE rezension (
+    rezension_id SERIAL PRIMARY KEY,
+    kunden_id INT REFERENCES kunde(kunden_id),
+    asin VARCHAR(40) REFERENCES item(asin),
+    bewertung INT CHECK (bewertung BETWEEN 1 AND 5),
+    text TEXT,
+    rezensionsdatum TIMESTAMP
+);
+
+CREATE TABLE angebot (
+    shop_id INT REFERENCES shop(shop_id),
+    asin VARCHAR(40) REFERENCES item(asin),
+    preis DECIMAL(5,2),
+    verfuegbar BOOLEAN,
+    zustand TEXT,
+    PRIMARY KEY (shop_id, asin)
+);
+
