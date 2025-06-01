@@ -1,15 +1,8 @@
 import java.io.File;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.Types;
+import java.sql.*;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import org.w3c.dom.*;
 
 public class ImportCategories {
 
@@ -20,7 +13,7 @@ public class ImportCategories {
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
 
-            File xmlFile = new File("data", "categories.xml");
+            File xmlFile = new File("media-store/data/categories.xml");
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(xmlFile);
@@ -45,7 +38,7 @@ public class ImportCategories {
     }
 
     private static void processCategory(Element element, Integer parentId, Connection conn) throws Exception {
-        String categoryName = element.getAttribute("name").trim();
+        String categoryName = getCategoryName(element);
         if (categoryName.isEmpty()) {
             System.err.println("Kategorie ohne Namen übersprungen.");
             return;
@@ -61,17 +54,24 @@ public class ImportCategories {
                 if (el.getTagName().equals("category")) {
                     processCategory(el, categoryId, conn);
                 } else if (el.getTagName().equals("item")) {
-                    String asin = el.getAttribute("asin").trim();
+                    String asin = el.getTextContent().trim();
                     insertItemCategory(conn, asin, categoryId);
                 }
             }
         }
     }
 
+    private static String getCategoryName(Element element) {
+        Node first = element.getFirstChild();
+        if (first != null && first.getNodeType() == Node.TEXT_NODE) {
+            return first.getNodeValue().trim();
+        }
+        return "";
+    }
+
     private static int getOrInsertCategory(Connection conn, String name, Integer parentId) throws Exception {
-        // Check if category exists
         String query = "SELECT kategorie_id FROM kategorie WHERE name = ? AND "
-                     + (parentId == null ? "eltern_id IS NULL" : "eltern_id = ?");
+                + (parentId == null ? "eltern_id IS NULL" : "eltern_id = ?");
         try (PreparedStatement ps = conn.prepareStatement(query)) {
             ps.setString(1, name);
             if (parentId != null) {
@@ -83,7 +83,6 @@ public class ImportCategories {
             }
         }
 
-        // Insert if not found
         try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO kategorie (name, eltern_id) VALUES (?, ?) RETURNING kategorie_id")) {
             ps.setString(1, name);
@@ -104,7 +103,8 @@ public class ImportCategories {
     }
 
     private static void insertItemCategory(Connection conn, String asin, int categoryId) throws Exception {
-        if (asin.isEmpty()) return;
+        if (asin.isEmpty())
+            return;
 
         try (PreparedStatement check = conn.prepareStatement("SELECT 1 FROM item WHERE asin = ?")) {
             check.setString(1, asin);

@@ -151,7 +151,7 @@ Create table item_person (
 );
 
 CREATE TABLE kategorie (
-    kategorie_id VARCHAR(40) PRIMARY KEY,
+    kategorie_id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     eltern_id INT REFERENCES kategorie(kategorie_id)
 );
@@ -208,4 +208,3 @@ CREATE TABLE angebot (
     zustand TEXT,
     PRIMARY KEY (shop_id, asin)
 );
-
