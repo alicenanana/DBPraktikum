@@ -1,0 +1,24 @@
+-- ACHTUNG: Löscht alle Tabellen und abhängige Daten!
+DROP TABLE IF EXISTS item_kategorie;
+DROP TABLE IF EXISTS item_person;
+DROP TABLE IF EXISTS item_label;
+DROP TABLE IF EXISTS item_publisher;
+DROP TABLE IF EXISTS item_studio;
+DROP TABLE IF EXISTS item_listmania;
+DROP TABLE IF EXISTS similar_product;
+DROP TABLE IF EXISTS item_track;
+DROP TABLE IF EXISTS track;
+DROP TABLE IF EXISTS item_audiotext;
+DROP TABLE IF EXISTS audiotext;
+DROP TABLE IF EXISTS bookspec;
+DROP TABLE IF EXISTS musicspec;
+DROP TABLE IF EXISTS dvdspec;
+DROP TABLE IF EXISTS item;
+DROP TABLE IF EXISTS kategorie;
+DROP TABLE IF EXISTS shop;
+DROP TABLE IF EXISTS publisher;
+DROP TABLE IF EXISTS label;
+DROP TABLE IF EXISTS studio;
+DROP TABLE IF EXISTS listmania;
+DROP TABLE IF EXISTS person;
+DROP TABLE IF EXISTS illegal_data;
