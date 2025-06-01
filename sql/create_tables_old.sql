@@ -55,15 +55,15 @@ CREATE TABLE autor ( --nötig?
 
 CREATE TABLE dvd_person ( -- stattdessen auch PRIMARY KEY (dvd_id, name, rolle),
     id SERIAL PRIMARY KEY,
-    produktnr VARCHAR NOT NULL REFERENCES DVD(produktnr),
+    produktnr VARCHAR NOT NULL REFERENCES dvd(produktnr),
     name TEXT NOT NULL,
     rolle TEXT NOT NULL CHECK (rolle IN ('actor', 'director', 'creator'))
 );
 
 CREATE TABLE lied (
     lied_id SERIAL PRIMARY KEY,
-    titel TEXT NOT NULL,
-    produktnr VARCHAR NOT NULL REFERENCES CD(produktnr),
+    titel TEXT ,
+    produktnr VARCHAR NOT NULL REFERENCES cd(produktnr),
     dauer INT,
     kuenstler_id INTEGER REFERENCES kuenstler(kuenstler_id)
 );
@@ -148,3 +148,9 @@ CREATE INDEX idx_kauf_kunde ON kauf(kunden_id);
 CREATE INDEX idx_lied_cd ON lied(produktnr);
 CREATE INDEX idx_dvd_person_dvd ON dvd_person(produktnr);
 
+CREATE TABLE import_errors (
+    entity TEXT,
+    entity_id TEXT,
+    attribut TEXT,
+    fehler TEXT
+);

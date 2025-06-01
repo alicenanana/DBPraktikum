@@ -1,3 +1,4 @@
+package old;
 /*
  * deprecated - stattdessen über inserts erledigt
  * import com.opencsv.CSVReader;
