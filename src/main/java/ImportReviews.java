@@ -42,7 +42,7 @@ public class ImportReviews {
 
                 try {
                     String asin = line[0].trim();
-                    
+
                     int bewertung = Integer.parseInt(line[1].trim());
                     int kunden_id = Integer.parseInt(line[2].trim());
                     Date rezensionsdatum = Date.valueOf(line[3].trim()); // Format: yyyy-mm-dd
@@ -87,6 +87,12 @@ public class ImportReviews {
                             continue;
                         }
                     }
+
+                    if (bewertung < 1 || bewertung > 5) {
+                        System.err.println("Ungültige Bewertung in Zeile " + lineNumber + ": " + bewertung);
+                        continue;
+                    }
+
                     // Rezension einfügen
                     try (PreparedStatement stmt = conn.prepareStatement(
                             "INSERT INTO rezension (kunden_id, asin, bewertung, text, rezensionsdatum) VALUES (?, ?, ?, ?, ?)")) {
