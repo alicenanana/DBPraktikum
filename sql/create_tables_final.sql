@@ -5,7 +5,7 @@ CREATE TABLE shop (
     street VARCHAR(50),zip VARCHAR(20)
 );
 
--- IteProduktem (gemeinsam für Bücher, DVDs, Music)
+-- Item (gemeinsam für Bücher, DVDs, Music)
 CREATE TABLE item (
     shop_id INT REFERENCES shop(shop_id),
     asin VARCHAR(40) Primary Key, 
