@@ -18,13 +18,17 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
-
+/**
+ * ImportRest.java
+ * Importiert Daten aus den Xml dateien Leipzig und Dresden 
+ * in eine PostgreSQL-Datenbank.
+ */
 public class ImportRest {
 
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
-        String password = "postgres";
+        String password = "Robin2504!";
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
             // Tabellen resetten
