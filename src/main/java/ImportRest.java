@@ -4,6 +4,7 @@ import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Types;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +24,7 @@ public class ImportRest {
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
-        String password = "postgres";
+        String password = "Robin2504!";
 
 
         // Leipzig
@@ -35,7 +36,9 @@ public class ImportRest {
             Document doc = builder.parse(xmlFile);
             doc.getDocumentElement().normalize();
 
-
+            for (int i=0;i<3;i++) {System.out.println("");}
+            System.out.println("Starte Import für Leipzig...");
+            for (int i=0;i<3;i++) {System.out.println("");}
 
             NodeList productList = doc.getElementsByTagName("item");
             for (int i = 0; i < productList.getLength(); i++) {
@@ -132,12 +135,13 @@ public class ImportRest {
                         break;
                 }
             }
-
-            System.out.println("Import abgeschlossen. Leipzig");
+            
+            for (int i=0;i<3;i++) {System.out.println("");}
+            System.out.println("Import abgeschlossen. Leipzig mit " + productList.getLength() + " Produkten.");
+            for (int i=0;i<3;i++) {System.out.println("");}
         } catch (Exception e) {
             System.err.println("An error occurred: " + e.getMessage());
         }
-
 
         // Dresden
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
@@ -158,11 +162,15 @@ public class ImportRest {
                     productList.add(item);
                 }
             }
+            List<Element> illegalProductList = new ArrayList<>();
 
             for (int i = 0; i < productList.size(); i++) {
             Element product = productList.get(i);
             String asin = product.getAttribute("asin");
-            if (asin.isEmpty() || asin.length() > 20) continue;
+            if (asin.isEmpty() || asin.length() > 20) {
+            illegalProductList.add(product);
+            continue; 
+            }
 
             //  PGROUP ermitteln
             String pgroup = product.getAttribute("pgroup").trim();
@@ -252,12 +260,21 @@ public class ImportRest {
                 break;
             }
             }
+            // Entferne ungültige Produkte
+            for (Element illegalProduct : illegalProductList) {
+                String asin = illegalProduct.getAttribute("asin");
+                System.err.println("Ungültige ASIN übersprungen: '" + asin + "'");
+                productList.remove(illegalProduct);
+            }
 
-            System.out.println("Import abgeschlossen. Dresden");
+            for (int i = 0; i < 3; i++) {System.out.println("");}
+            System.out.println("Import abgeschlossen. Dresden mit " + productList.size() + " Produkten.");
+            for (int i = 0; i < 3; i++) {System.out.println("");}
         } catch (Exception e) {
             System.err.println("An error occurred: " + e.getMessage());
         }
     }
+
     /**
      * Fügt ein Buch in die Datenbank ein.
      * 
@@ -267,7 +284,8 @@ public class ImportRest {
      * @throws Exception Wenn ein Fehler beim Einfügen auftritt
      */
     static void insertBook(Connection conn, Element product, String asin) throws Exception {
-
+        
+        
 
         //bookspecs
         Element bookspec = (Element) product.getElementsByTagName("bookspec").item(0);
@@ -276,6 +294,12 @@ public class ImportRest {
             return;
         }
 
+        // ISBN
+        Element isbnele = (Element) bookspec.getElementsByTagName("isbn").item(0);
+        String isbn = isbnele.getAttribute("val");
+        if (isbn.isEmpty()) {
+            return; 
+        }
 
         // Binding
         String binding = getText(product, "binding");
@@ -283,23 +307,12 @@ public class ImportRest {
             binding = "Unknown"; 
         }
 
-       
-
         //edition
         Element editionele = (Element) bookspec.getElementsByTagName("edition").item(0);
         String edition = editionele.getAttribute("val");
         if (edition.isEmpty()) {
             edition = "Unknown"; 
         }
-
-
-        // ISBN
-        Element isbnele = (Element) bookspec.getElementsByTagName("isbn").item(0);
-        String isbn = isbnele.getAttribute("val");
-        if (isbn.isEmpty()) {
-            isbn = "Unknown"; 
-        }
-
 
         // Seitenanzahl
         String pagesStr = getText(product, "pages");
@@ -323,15 +336,23 @@ public class ImportRest {
             length = "/";
         }
 
-        
+
         // Veröffentlichungsdatum
-        String pubDateStr = getText(bookspec, "publication_date");
-        LocalDate pubDate;
-        if (pubDateStr == null || pubDateStr.isEmpty()) {
-        pubDate = LocalDate.now();
-        } else {
-        pubDate = LocalDate.parse(pubDateStr);
+        List<String> pubDateList = getAttributeList(bookspec, "publication", "date");
+        LocalDate pubDate = null;
+        for (String pubdateStr :pubDateList  ){
+            if (!pubdateStr.isEmpty()) {
+                try {
+                    pubDate = LocalDate.parse(pubdateStr);
+                    break; 
+                } catch (Exception e) {
+                    System.err.println("Ungültiges Veröffentlichungsdatum für ASIN " + asin + ": " + pubdateStr);
+                }
+            } 
         }
+        
+
+
 
 
         PreparedStatement ps = conn.prepareStatement("INSERT INTO bookspec (asin, binding, edition, isbn, pages, publication_date, height, weight, length)VALUES" + 
@@ -341,7 +362,11 @@ public class ImportRest {
         ps.setString(3, edition);
         ps.setString(4, isbn);
         ps.setInt(5, pages);
-        ps.setDate(6, Date.valueOf(pubDate));
+        if (pubDate != null) {
+             ps.setDate(6, Date.valueOf(pubDate));
+        } else {
+            ps.setNull(6, Types.DATE);
+        }
         ps.setString(7, height);
         ps.setString(8, weight);
         ps.setString(9, length);
@@ -503,6 +528,14 @@ public class ImportRest {
        
     }
 
+    /**
+     * Fügt zusätzliche Informationen zu einem Produkt in die Datenbank ein.
+     * 
+     * @param conn   Die Datenbankverbindung
+     * @param product Das XML-Element, das die Produktinformationen enthält
+     * @param asin   Die ASIN des Produkts
+     * @throws Exception Wenn ein Fehler beim Einfügen auftritt
+     */
     static void insertRest(Connection conn, Element product, String asin) throws Exception {
 
         //label
@@ -522,9 +555,11 @@ public class ImportRest {
         for (int t = 0; t < trackTitles.getLength(); t++) {
             String trackTitle = trackTitles.item(t).getTextContent().trim();
             if (!trackTitle.isEmpty()) {
-                PreparedStatement pstrack = conn.prepareStatement("INSERT INTO track (asin, title) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                int track_id = getOrCreate(conn, "track", trackTitle);
+                PreparedStatement pstrack = conn.prepareStatement("INSERT INTO item_track (asin, track_id, track_no) VALUES (?, ? ,?) ON CONFLICT DO NOTHING");
                 pstrack.setString(1, asin);
-                pstrack.setString(2, trackTitle);
+                pstrack.setInt(2, track_id);
+                pstrack.setInt(3, t+1);
                 pstrack.executeUpdate();
             }
         }
@@ -545,6 +580,7 @@ public class ImportRest {
             }
         }
 
+        // Studios
         Element studiosElement = (Element) product.getElementsByTagName("studios").item(0);
         if (studiosElement != null) {
             List<String> studioNames = getAttributeList(studiosElement, "studio", "name");
@@ -693,7 +729,17 @@ public class ImportRest {
         rs.next();
         return rs.getInt(1);
     }
-    //(audiotext_id SERIAL PRIMARY KEY,lang_type VARCHAR(50),language VARCHAR(50),audioformat VARCHAR(100));
+    
+    /** 
+     * Bekommt die ID eines Audiotext-Eintrags mit dem angegebenen Sprachtyp, Sprache und Audioformat.
+     * 
+     * @param conn        Die Datenbankverbindung
+     * @param langType    Der Sprachtyp (z.B. "original", "translated")
+     * @param language    Die Sprache (z.B. "de", "en")
+     * @param audioFormat Das Audioformat (z.B. "mp3", "wav")
+     * @return            Die ID des Audiotext-Eintrags, entweder existierend oder neu erstellt
+     * @throws Exception Wenn ein Fehler beim Zugriff auf die Datenbank auftritt
+     */
     static int getOrCreateAtext(Connection conn, String langType, String language, String audioFormat) throws Exception {
         PreparedStatement psSel = conn.prepareStatement(
             "SELECT audiotext_id FROM audiotext WHERE lang_type = ? AND language = ? AND audioformat = ?"
@@ -740,10 +786,7 @@ public class ImportRest {
     rs = psIns.executeQuery();
     rs.next();
     return rs.getInt(1);
-}
-
-
-    
+}    
 
     /**
      * bekommt den Textinhalt des ersten Elements mit dem angegebenen Tag-Namen innerhalb des übergebenen Elements.
@@ -781,8 +824,7 @@ public class ImportRest {
 
     return result;
     }
-
-    
+   
     /**
      * bekommt den Textinhalt des ersten Elements mit dem angegebenen Tag-Namen innerhalb des übergebenen Produkt-Elements.
      * 
@@ -798,6 +840,14 @@ public class ImportRest {
     return "";
     }
 
+    /**
+     * bekommt eine Liste von Attributwerten für ein bestimmtes Tag innerhalb des übergebenen Elements.
+     * 
+     * @param parent Das Element, in dem nach den Tags gesucht wird
+     * @param tagName Der Name des Tags, dessen Attribute extrahiert werden sollen
+     * @param attributeName Der Name des Attributs, dessen Werte extrahiert werden sollen
+     * @return Eine Liste von Attributwerten
+     */
     static List<String> getAttributeList(Element parent, String tagName, String attributeName) {
         List<String> result = new ArrayList<>();
         NodeList nodeList = parent.getElementsByTagName(tagName);
@@ -811,7 +861,15 @@ public class ImportRest {
         return result;
     }
 
-public static List<String> getNamesForRole(Element product, String containerTag, String elementTag) {
+    /**
+     * bekommt eine Liste von Namen für eine bestimmte Rolle (z.B. "author", "actor") innerhalb des übergebenen Produkt-Elements.
+     * 
+     * @param product Das Produkt-Element, in dem nach den Rollen gesucht wird
+     * @param containerTag Der Name des Containers, der die Rollen enthält (z.B. "authors", "actors")
+     * @param elementTag Der Name des Elements, das die Rolle repräsentiert (z.B. "author", "actor")
+     * @return Eine Liste von Namen für die angegebene Rolle
+     */
+    public static List<String> getNamesForRole(Element product, String containerTag, String elementTag) {
 List<String> result = new ArrayList<>();
 NodeList containerNodes = product.getElementsByTagName(containerTag);
 if (containerNodes.getLength() == 0) return result;  // Keine solche Rolle vorhanden
@@ -827,8 +885,5 @@ for (int i = 0; i < roleNodes.getLength(); i++) {
 }
 return result;
 }
-
-
-    
 
 }
