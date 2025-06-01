@@ -24,183 +24,249 @@ public class ImportRest {
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
-        String password = "postgres";
+        String password = "Robin2504!";
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
             // Tabellen resetten
             Statement stmt = conn.createStatement();
+            // --- Drop all tables and recreate schema ---
             stmt.executeUpdate(
-                // --- Drop all tables ---
-                "DROP TABLE IF EXISTS item_kategorie, kategorie, item_person, person, item_listmania, listmania, " +
-                "item_studio, studio, item_label, label, item_publisher, publisher, " +
-                "item_audiotext, audiotext, similar_product, item_track, track, " +
-                "dvdspec, musicspec, bookspec, item, shop CASCADE; " +
+                "DROP TABLE IF EXISTS item_kategorie,item_person,item_label,item_publisher," +
+                "item_studio,item_listmania,similar_product,item_track,track,item_audiotext," +
+                "audiotext,bookspec,musicspec,dvdspec,kategorie,publisher,label,studio,listmania," +
+                "person,illegal_data,item,kunde,bestellung,bestellposition,rezension,angebot,shop CASCADE;"
+            );
 
-                // Shop
-                "CREATE TABLE shop ( " +
-                "    shop_id SERIAL PRIMARY KEY, " +
-                "    name VARCHAR(32) UNIQUE, " +
-                "    street VARCHAR(50), " +
-                "    zip VARCHAR(20) " +
-                "); " +
+            // Shop
+            stmt.executeUpdate(
+                "CREATE TABLE shop (" +
+                "    shop_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(50) UNIQUE," +
+                "    street VARCHAR(50)," +
+                "    zip VARCHAR(20));"
+            );
 
-                // Item
-                "CREATE TABLE item ( " +
-                "    shop_id INT REFERENCES shop(shop_id), " +
-                "    asin VARCHAR(40) PRIMARY KEY, " +
-                "    pgroup VARCHAR(40) NOT NULL CHECK (pgroup IN ('Book', 'DVD', 'Music', 'Unknown')), " +
-                "    title TEXT NOT NULL, " +
-                "    salesrank INT, " +
-                "    picture TEXT, " +
-                "    detailpage TEXT, " +
-                "    ean VARCHAR(60), " +
-                "    price DECIMAL(5,2), " +
-                "    item_status VARCHAR(20), " +
-                "    currency VARCHAR(10) " +
-                "); " +
+            // Item (gemeinsam für Bücher, DVDs, Music)
+            stmt.executeUpdate(
+                "CREATE TABLE item (" +
+                "    shop_id INT REFERENCES shop(shop_id) ON DELETE SET NULL," +
+                "    asin VARCHAR(40) PRIMARY KEY," +
+                "    pgroup VARCHAR(40) NOT NULL CHECK (pgroup IN ('Book', 'DVD', 'Music'))," +
+                "    title TEXT NOT NULL," +
+                "    salesrank INT," +
+                "    picture TEXT," +
+                "    detailpage TEXT," +
+                "    ean VARCHAR(60)," +
+                "    price DECIMAL(5,2) NOT NULL," +
+                "    item_status VARCHAR(20)," +
+                "    currency VARCHAR(10) NOT NULL);"
+            );
 
-                // Book
-                "CREATE TABLE bookspec ( " +
-                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin), " +
-                "    binding VARCHAR(80), " +
-                "    edition VARCHAR(80), " +
-                "    isbn VARCHAR(40), " +
-                "    weight VARCHAR(30), " +
-                "    height VARCHAR(30), " +
-                "    length VARCHAR(30), " +
-                "    pages INT, " +
-                "    publication_date DATE " +
-                "); " +
+            // Buch
+            stmt.executeUpdate(
+                "CREATE TABLE bookspec (" +
+                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    binding VARCHAR(80)," +
+                "    edition VARCHAR(80)," +
+                "    isbn VARCHAR(40) NOT NULL," +
+                "    weight VARCHAR(30)," +
+                "    height VARCHAR(30)," +
+                "    length VARCHAR(30)," +
+                "    pages INT," +
+                "    publication_date DATE);"
+            );
 
-                // Music
-                "CREATE TABLE musicspec ( " +
-                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin), " +
-                "    binding VARCHAR(100), " +
-                "    format VARCHAR(150), " +
-                "    num_discs INT, " +
-                "    releasedate DATE, " +
-                "    upc VARCHAR(40) " +
-                "); " +
+            // Musiks
+            stmt.executeUpdate(
+                "CREATE TABLE musicspec (" +
+                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    binding VARCHAR(50)," +
+                "    format VARCHAR(150)," +
+                "    num_discs INT," +
+                "    releasedate DATE," +
+                "    upc VARCHAR(40));"
+            );
 
-                // DVD
-                "CREATE TABLE dvdspec ( " +
-                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin), " +
-                "    aspectratio VARCHAR(80), " +
-                "    format VARCHAR(100), " +
-                "    regioncode INT, " +
-                "    releasedate DATE, " +
-                "    runningtime INT, " +
-                "    theatr_release INT, " +
-                "    upc VARCHAR(60) " +
-                "); " +
+            // DVD
+            stmt.executeUpdate(
+                "CREATE TABLE dvdspec (" +
+                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    aspectratio VARCHAR(80)," +
+                "    format VARCHAR(100)," +
+                "    regioncode INT," +
+                "    releasedate DATE," +
+                "    runningtime INT," +
+                "    theatr_release INT," +
+                "    upc VARCHAR(60));"
+            );
 
-                // Tracks
-                "CREATE TABLE track ( " +
-                "    track_id SERIAL PRIMARY KEY, " +
-                "    name TEXT " +
-                "); " +
+            // Tracks (für Music-CDs)
+            stmt.executeUpdate(
+                "CREATE TABLE track (" +
+                "    track_id SERIAL PRIMARY KEY," +
+                "    name TEXT);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_track (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    track_id INT REFERENCES track(track_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, track_id));"
+            );
 
-                "CREATE TABLE item_track ( " +
-                "    asin VARCHAR(40) REFERENCES item(asin), " +
-                "    track_id INT REFERENCES track(track_id), " +
-                "    PRIMARY KEY (asin, track_id) " +
-                "); " +
+            // Similar Products
+            stmt.executeUpdate(
+                "CREATE TABLE similar_product (" +
+                "    sim_id SERIAL PRIMARY KEY," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    sim_asin VARCHAR(40));"
+            );
 
-                // Similar Products
-                "CREATE TABLE similar_product ( " +
-                "    sim_id SERIAL PRIMARY KEY, " +
-                "    asin VARCHAR(40) REFERENCES item(asin), " +
-                "    sim_asin VARCHAR(40), " +
-                "    sim_title TEXT " +
-                "); " +
+            // Audiotext (Mehrsprachige Angaben)
+            stmt.executeUpdate(
+                "CREATE TABLE audiotext (" +
+                "    audiotext_id SERIAL PRIMARY KEY," +
+                "    lang_type VARCHAR(50)," +
+                "    language VARCHAR(50)," +
+                "    audioformat VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_audiotext (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    audiotext_id INT REFERENCES audiotext(audiotext_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, audiotext_id));"
+            );
 
-                // Audiotext
-                "CREATE TABLE audiotext ( " +
-                "    audiotext_id SERIAL PRIMARY KEY, " +
-                "    lang_type VARCHAR(100), " +
-                "    language VARCHAR(100), " +
-                "    audioformat VARCHAR(100) " +
-                "); " +
+            // Publisher
+            stmt.executeUpdate(
+                "CREATE TABLE publisher (" +
+                "    publisher_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_publisher (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    publisher_id INT REFERENCES publisher(publisher_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, publisher_id));"
+            );
 
-                "CREATE TABLE item_audiotext ( " +
-                "    asin VARCHAR(40) REFERENCES item(asin), " +
-                "    audiotext_id INT REFERENCES audiotext(audiotext_id), " +
-                "    PRIMARY KEY (asin, audiotext_id) " +
-                "); " +
+            // Label
+            stmt.executeUpdate(
+                "CREATE TABLE label (" +
+                "    label_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_label (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    label_id INT REFERENCES label(label_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, label_id));"
+            );
 
-                // Publisher
-                "CREATE TABLE publisher ( " +
-                "    publisher_id SERIAL PRIMARY KEY, " +
-                "    name VARCHAR(100) " +
-                "); " +
+            // Studio
+            stmt.executeUpdate(
+                "CREATE TABLE studio (" +
+                "    studio_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_studio (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    studio_id INT REFERENCES studio(studio_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, studio_id));"
+            );
 
-                "CREATE TABLE item_publisher ( " +
-                "    asin VARCHAR(20) REFERENCES item(asin), " +
-                "    publisher_id INT REFERENCES publisher(publisher_id), " +
-                "    PRIMARY KEY (asin, publisher_id) " +
-                "); " +
+            // Listmania
+            stmt.executeUpdate(
+                "CREATE TABLE listmania (" +
+                "    list_id SERIAL PRIMARY KEY," +
+                "    name TEXT);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_listmania (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    list_id INT REFERENCES listmania(list_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, list_id));"
+            );
 
-                // Label
-                "CREATE TABLE label ( " +
-                "    label_id SERIAL PRIMARY KEY, " +
-                "    name VARCHAR(100) " +
-                "); " +
+            // Person rolle nur bei item_person
+            stmt.executeUpdate(
+                "CREATE TABLE person (" +
+                "    person_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_person (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    person_id INT REFERENCES person(person_id) ON DELETE CASCADE," +
+                "    person_role VARCHAR(20)," +
+                "    PRIMARY KEY (asin, person_id));"
+            );
 
-                "CREATE TABLE item_label ( " +
-                "    asin VARCHAR(20) REFERENCES item(asin), " +
-                "    label_id INT REFERENCES label(label_id), " +
-                "    PRIMARY KEY (asin, label_id) " +
-                "); " +
+            // Kategorie
+            stmt.executeUpdate(
+                "CREATE TABLE kategorie (" +
+                "    kategorie_id SERIAL PRIMARY KEY," +
+                "    name TEXT NOT NULL," +
+                "    eltern_id INT REFERENCES kategorie(kategorie_id) ON DELETE CASCADE);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_kategorie (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE SET NULL," +
+                "    PRIMARY KEY (asin, kategorie_id));"
+            );
 
-                // Studio
-                "CREATE TABLE studio ( " +
-                "    studio_id SERIAL PRIMARY KEY, " +
-                "    name VARCHAR(100) " +
-                "); " +
+            // Illegal Data
+            stmt.executeUpdate(
+                "CREATE TABLE illegal_data (" +
+                "    illegal_id SERIAL PRIMARY KEY," +
+                "    asin VARCHAR(40)," +
+                "    pgroup VARCHAR(40)," +
+                "    title TEXT," +
+                "    error_message TEXT," +
+                "    import_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+            );
 
-                "CREATE TABLE item_studio ( " +
-                "    asin VARCHAR(20) REFERENCES item(asin), " +
-                "    studio_id INT REFERENCES studio(studio_id), " +
-                "    PRIMARY KEY (asin, studio_id) " +
-                "); " +
+            // Kunden und Bestellungen
+            stmt.executeUpdate(
+                "CREATE TABLE kunde (" +
+                "    kunden_id SERIAL PRIMARY KEY," +
+                "    username TEXT UNIQUE NOT NULL," +
+                "    mail TEXT UNIQUE," +
+                "    adresse TEXT," +
+                "    konto_nr TEXT);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE bestellung (" +
+                "    bestellung_id SERIAL PRIMARY KEY," +
+                "    kunden_id INT REFERENCES kunde(kunden_id) ON DELETE CASCADE," +
+                "    kaufdatum TIMESTAMP);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE bestellposition (" +
+                "    bestellung_id INT REFERENCES bestellung(bestellung_id) ON DELETE CASCADE," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    PRIMARY KEY (bestellung_id, asin));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE rezension (" +
+                "    rezension_id SERIAL PRIMARY KEY," +
+                "    kunden_id INT REFERENCES kunde(kunden_id) ON DELETE CASCADE," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    bewertung INT CHECK (bewertung BETWEEN 1 AND 5)," +
+                "    text TEXT," +
+                "    rezensionsdatum TIMESTAMP);"
+            );
 
-                // Listmania
-                "CREATE TABLE listmania ( " +
-                "    list_id SERIAL PRIMARY KEY, " +
-                "    name TEXT " +
-                "); " +
-
-                "CREATE TABLE item_listmania ( " +
-                "    asin VARCHAR(20) REFERENCES item(asin), " +
-                "    list_id INT REFERENCES listmania(list_id), " +
-                "    PRIMARY KEY (asin, list_id) " +
-                "); " +
-
-                // Person
-                "CREATE TABLE person ( " +
-                "    person_id SERIAL PRIMARY KEY, " +
-                "    name VARCHAR(100) " +
-                "); " +
-
-                "CREATE TABLE item_person ( " +
-                "    asin VARCHAR(40) REFERENCES item(asin), " +
-                "    person_id INT REFERENCES person(person_id), " +
-                "    person_role VARCHAR(20), " +
-                "    PRIMARY KEY (asin, person_id) " +
-                "); " +
-
-                // Kategorie
-                "CREATE TABLE kategorie ( " +
-                "    kategorie_id INT PRIMARY KEY, " +
-                "    name TEXT NOT NULL, " +
-                "    eltern_id INT REFERENCES kategorie(kategorie_id) " +
-                "); " +
-
-                "CREATE TABLE item_kategorie ( " +
-                "    asin VARCHAR(40) REFERENCES item(asin), " +
-                "    kategorie_id INT REFERENCES kategorie(kategorie_id), " +
-                "    PRIMARY KEY (asin, kategorie_id) " +
-                "); "
+            // Angebot je Shop
+            stmt.executeUpdate(
+                "CREATE TABLE angebot (" +
+                "    shop_id INT REFERENCES shop(shop_id) ON DELETE CASCADE," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    preis DECIMAL(5,2)," +
+                "    verfuegbar BOOLEAN," +
+                "    zustand TEXT," +
+                "    PRIMARY KEY (shop_id, asin));"
             );
             // extrahiere aus Files
             File leipzigFile = new File("data", "leipzig_transformed.xml");
@@ -244,14 +310,14 @@ public class ImportRest {
                         productList.add(item);
                     }
                 }
-                List<Element> illegalProductList = new ArrayList<>();
-
                 for (Element product : productList) {
                     String asin = product.getAttribute("asin");
                     if (asin.isEmpty() || asin.length() > 20) {
-                        illegalProductList.add(product);
+                        logIllegal(product, "ASIN ungültig oder leer", conn);
                         continue;
                     }
+                   
+
 
                     String pgroup = product.getAttribute("pgroup").trim();
                     if (pgroup.matches("(?i)AUDIO-CD|CD|MUSIKKASSETTE|VINYL  LP|Musical|Music")) {
@@ -275,16 +341,64 @@ public class ImportRest {
                         else if (hasMusicSpec || hasTracks)
                             pgroup = "Music";
                         else {
-                            illegalProductList.add(product);
+                            logIllegal(product, "pgroup ungültig oder leer", conn);
                             continue;
                         }
-                    }
 
+                    }
+                    
                     System.out.println("Verarbeite nun PGROUP: " + pgroup + " fuer ASIN: " + asin);
 
+                    switch (pgroup) {
+                        case "Book": {
+                            Element bookspec = (Element) product.getElementsByTagName("bookspec").item(0);
+                            Element isbnele = (Element) bookspec.getElementsByTagName("isbn").item(0);
+                            String isbn = isbnele.getAttribute("val");
+                            if (isbn.isEmpty() || 10 > isbn.length() || isbn.length() > 13) {
+                                logIllegal(product, "Isbn leer oder ungültig", conn);
+                                continue;
+                            }
+                            break;
+                        }
+                        case "DVD": {
+                            Element dvdspec = (Element) product.getElementsByTagName("dvdspec").item(0);
+                            Element upcElement = (Element) dvdspec.getElementsByTagName("upc").item(0);
+                            String regionStr = getText(dvdspec, "regioncode");
+                            int region;
+                            if (upcElement != null && upcElement.hasAttribute("val")) {
+                                String upc = upcElement.getAttribute("val");
+                                if (upc.length() != 8 && upc.length() != 12) {
+                                    logIllegal(product, "upc ungültig", conn);
+                                    continue;
+                                }
+                            } else if (!regionStr.isEmpty()) {
+                                region = Integer.parseInt(regionStr);
+                                if (region < 0 || region > 8) {
+                                    logIllegal(product, "Region ungültig", conn);
+                                    continue;
+                                }
+                            }
+                            break;
+                        }
+                        case "Music": {
+                            Element musicspec = (Element) product.getElementsByTagName("musicspec").item(0);
+                            String upc = getText(musicspec, "upc");
+                            if (upc != null && !upc.isEmpty() && (upc.length() != 8 && upc.length() != 12)) {
+                                logIllegal(product, "upc ungültig", conn);
+                                continue;
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+
                     String title = getText(product, "title");
-                    if (title.isEmpty())
-                        title = "Unbekannter Titel";
+                    if (title.isEmpty()) {
+                        logIllegal(product, "Titel leer", conn);
+                        continue;
+                    }
+
 
                     int salesrank = 0;
                     try {
@@ -308,6 +422,10 @@ public class ImportRest {
                         pricestate = priceElement.getAttribute("state");
                         pricecurrency = priceElement.getAttribute("currency");
                     }
+                    if (price <= 0.0 || pricecurrency == null || pricecurrency.isEmpty()){
+                        logIllegal(product, "Preis oder Währung fehlen", conn);
+                        continue;
+                    }
 
                     String picture = product.getAttribute("picture");
                     if (picture.isEmpty())
@@ -318,7 +436,11 @@ public class ImportRest {
                         detailPage = "No Detail Page";
 
                     String ean = product.getAttribute("ean");
-
+                    if(ean.length() != 8 && ean.length() != 13) {
+                        logIllegal(product, "EAN ungültig oder leer", conn);
+                        continue;
+                        }
+                    
                     PreparedStatement psItem = conn.prepareStatement(
                             "INSERT INTO item ( asin, pgroup, title, salesrank, price, picture, detailpage,"
                                     + "ean, item_status, currency, shop_id) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING");
@@ -335,6 +457,8 @@ public class ImportRest {
                     psItem.setInt(11, shop_id);
                     psItem.executeUpdate();
 
+                    System.out.println("ASIN: " + asin + " mit PGROUP: " + pgroup + " erfolgreich in die Datenbank eingefügt.");
+
                     switch (pgroup) {
                         case "Book":
                             insertBook(conn, product, asin);
@@ -349,13 +473,6 @@ public class ImportRest {
                             insertRest(conn, product, asin);
                             break;
                     }
-                }
-
-                // Entferne ungültige Produkte
-                for (Element illegalProduct : illegalProductList) {
-                    String asin = illegalProduct.getAttribute("asin");
-                    System.err.println("Ungültige ASIN übersprungen: '" + asin + "'");
-                    productList.remove(illegalProduct);
                 }
 
                 for (int i = 0; i < 3; i++) {
@@ -390,7 +507,8 @@ public class ImportRest {
         Element isbnele = (Element) bookspec.getElementsByTagName("isbn").item(0);
         String isbn = isbnele.getAttribute("val");
         if (isbn.isEmpty()) {
-            return;
+            logIllegal(product, "Isbn leer", conn);
+
         }
 
         // Binding
@@ -686,12 +804,10 @@ public class ImportRest {
         List<Map<String, String>> similarProducts = getSimilarProducts(product);
         for (Map<String, String> simProduct : similarProducts) {
             String simAsin = simProduct.get("asin");
-            String simTitle = simProduct.get("title");
             if (simAsin != null && !simAsin.isEmpty()) {
-                PreparedStatement pssim = conn.prepareStatement("INSERT INTO similar_product (asin, sim_asin, sim_title) VALUES (?, ?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement pssim = conn.prepareStatement("INSERT INTO similar_product (asin, sim_asin) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 pssim.setString(1, asin);
                 pssim.setString(2, simAsin);
-                pssim.setString(3, simTitle);
                 pssim.executeUpdate();
             }
         }
@@ -942,5 +1058,29 @@ public class ImportRest {
             }
         }
         return result;
+    }
+     
+    /**
+    * Protokolliert einen illegalen Eintrag in der Datenbank.
+    * @param product Das Produkt-Element, das den illegalen Eintrag repräsentiert
+    * @param reason  Der Grund, warum der Eintrag als illegal betrachtet wird
+    * @param conn    Die Datenbankverbindung
+    */
+    private static void logIllegal(Element product, String reason, Connection conn) {
+        try {
+            String asin = product.getAttribute("asin");
+            String pgroup = product.getAttribute("pgroup");
+            String title = getText(product, "title");
+
+            PreparedStatement stmt = conn.prepareStatement("INSERT INTO illegal_data (asin, pgroup, title, error_message) VALUES (?, ?, ?, ?)");
+            stmt.setString(1, asin.isEmpty() ? null : asin);
+            stmt.setString(2, pgroup.isEmpty() ? null : pgroup);
+            stmt.setString(3, title.isEmpty() ? null : title);
+            stmt.setString(4, reason);
+            stmt.executeUpdate();
+            System.err.println("Illegaler Eintrag protokolliert: " + asin + " - " + reason);
+        } catch (java.sql.SQLException e) {
+            System.err.println("Fehler beim Eintrag in illegal_data: " + e.getMessage());
+        }
     }
 }
