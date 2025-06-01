@@ -160,7 +160,7 @@ CREATE TABLE kategorie (
 
 CREATE TABLE item_kategorie (
     asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE,
-    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE CASCADE,
+    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE NULL,
     PRIMARY KEY (asin, kategorie_id)
 );
 
@@ -177,7 +177,8 @@ CREATE TABLE illegal_data (
 -- Kunden und Bestellungen
 CREATE TABLE kunde (
     kunden_id SERIAL PRIMARY KEY,
-    name TEXT,
+    username TEXT UNIQUE NOT NULL,
+    mail TEXT UNIQUE,
     adresse TEXT,
     konto_nr TEXT
 );
