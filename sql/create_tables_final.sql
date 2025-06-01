@@ -16,9 +16,9 @@ CREATE TABLE item (
     picture TEXT,
     detailpage TEXT,
     ean VARCHAR(60),
-    price DECIMAL(5,2),
+    price DECIMAL(5,2) NOT NULL,
     item_status VARCHAR(20),
-    currency VARCHAR(10)
+    currency VARCHAR(10) NOT NULL
 );
 
 -- Buch
@@ -26,7 +26,7 @@ CREATE TABLE bookspec (
     asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE,
     binding VARCHAR(80),
     edition VARCHAR(80),
-    isbn VARCHAR(40),
+    isbn VARCHAR(40) NOT NULL,
     weight VARCHAR(30),
     height VARCHAR(30),
     length VARCHAR(30),
