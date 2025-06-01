@@ -1,15 +1,20 @@
-import com.opencsv.CSVReader;
 import java.io.FileReader;
-import java.sql.*;
+import java.sql.Connection;
 import java.sql.Date;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import com.opencsv.CSVReader;
 
 public class ImportReviews {
 
     public static void main(String[] args) {
-        String url = "jdbc:postgresql://localhost:5432/meine_media_store_db";
+        String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
         String password = "postgres";
-        String filePath = "media-store/data/reviews.csv";
+        String filePath = "data/reviews.csv";
 
         try (Connection conn = DriverManager.getConnection(url, user, password);
                 CSVReader reader = new CSVReader(new FileReader(filePath))) {
@@ -28,6 +33,7 @@ public class ImportReviews {
 
                 try {
                     String asin = line[0].trim();
+                    
                     int bewertung = Integer.parseInt(line[1].trim());
                     int kunden_id = Integer.parseInt(line[2].trim());
                     Date rezensionsdatum = Date.valueOf(line[3].trim()); // Format: yyyy-mm-dd
@@ -64,7 +70,14 @@ public class ImportReviews {
                             continue;
                         }
                     }
-
+                    try (PreparedStatement checkAsin = conn.prepareStatement("SELECT asin FROM item WHERE asin = ?")) {
+                        checkAsin.setString(1, asin);
+                        ResultSet rs = checkAsin.executeQuery();
+                        if (!rs.next()) {
+                            System.err.println("Übersprungene Zeile (ASIN nicht gefunden): " + asin);
+                            continue;
+                        }
+                    }
                     // Rezension einfügen
                     try (PreparedStatement stmt = conn.prepareStatement(
                             "INSERT INTO rezension (kunden_id, asin, bewertung, text, rezensionsdatum) VALUES (?, ?, ?, ?, ?)")) {
