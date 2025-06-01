@@ -18,7 +18,11 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
-
+/**
+ * ImportRest.java
+ * Importiert Daten aus den Xml dateien Leipzig und Dresden 
+ * in eine PostgreSQL-Datenbank.
+ */
 public class ImportRest {
 
     public static void main(String[] args) {
@@ -282,20 +286,23 @@ public class ImportRest {
             List<Document> Shops = new ArrayList<>();
             Shops.add(leipzigDoc);
             Shops.add(dresdenDoc);
-            int shop_id = 0;
 
             for (Document activeShop : Shops) {
                 Element shopElement = (Element) activeShop.getElementsByTagName("shop").item(0);
                 String shopName = shopElement.getAttribute("name");
                 String shopStreet = shopElement.getAttribute("street");
                 String shopZip = shopElement.getAttribute("zip");
-                shop_id++;
-                PreparedStatement psShop = conn.prepareStatement("INSERT INTO shop (shop_id, name, street, zip) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING");
-                psShop.setInt(1, shop_id);
-                psShop.setString(2, shopName);
-                psShop.setString(3, shopStreet);
-                psShop.setString(4, shopZip);
+                PreparedStatement psShop = conn.prepareStatement("INSERT INTO shop (name, street, zip) VALUES (?, ?, ?) ON CONFLICT DO NOTHING");
+                psShop.setString(1, shopName);
+                psShop.setString(2, shopStreet);
+                psShop.setString(3, shopZip);
                 psShop.executeUpdate();
+                int shop_id = 0;
+                if (shopName.equals("Leipzig")) {
+                    shop_id = 1;
+                } else if (shopName.equals("Dresden")) {
+                    shop_id = 2;
+                }
 
                 for (int i = 0; i < 3; i++) {System.out.println("");}
                 System.out.println("Starte Import für " + shopName +"...");
@@ -422,10 +429,7 @@ public class ImportRest {
                         pricestate = priceElement.getAttribute("state");
                         pricecurrency = priceElement.getAttribute("currency");
                     }
-                    if (price <= 0.0 || pricecurrency == null || pricecurrency.isEmpty()){
-                        logIllegal(product, "Preis oder Währung fehlen", conn);
-                        continue;
-                    }
+                    boolean vf_item = !(price <= 0.0 || pricecurrency == null || pricecurrency.isEmpty());
 
                     String picture = product.getAttribute("picture");
                     if (picture.isEmpty())
@@ -436,8 +440,11 @@ public class ImportRest {
                         detailPage = "No Detail Page";
 
                     String ean = product.getAttribute("ean");
+                    if (ean.isEmpty()) {
+                        ean = getText(product, "ean");
+                    } 
                     if(ean.length() != 8 && ean.length() != 13) {
-                        logIllegal(product, "EAN ungültig oder leer", conn);
+                        logIllegal(product, "EAN ungültig ", conn);
                         continue;
                         }
                     
@@ -458,6 +465,15 @@ public class ImportRest {
                     psItem.executeUpdate();
 
                     System.out.println("ASIN: " + asin + " mit PGROUP: " + pgroup + " erfolgreich in die Datenbank eingefügt.");
+
+                    PreparedStatement Verfügbar = conn.prepareStatement(
+                        "INSERT INTO angebot (shop_id, asin, preis, verfuegbar, zustand) VALUES (?, ?, ?, ?, ?) ON CONFLICT (shop_id, asin) DO NOTHING");
+                    Verfügbar.setInt(1, shop_id);
+                    Verfügbar.setString(2, asin);
+                    Verfügbar.setDouble(3, price);
+                    Verfügbar.setBoolean(4, vf_item); // Standardmäßig verfügbar
+                    Verfügbar.setString(5, pricestate); // Standardmäßig Zustand "Neu"
+                    Verfügbar.executeUpdate();
 
                     switch (pgroup) {
                         case "Book":
