@@ -72,8 +72,7 @@ CREATE TABLE item_track (
 CREATE TABLE similar_product (
     sim_id SERIAL PRIMARY KEY,
     asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE,
-    sim_asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE,
-
+    sim_asin VARCHAR(40)
 );
 
 -- Audiotext (Mehrsprachige Angaben)
@@ -160,7 +159,7 @@ CREATE TABLE kategorie (
 
 CREATE TABLE item_kategorie (
     asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE,
-    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE NULL,
+    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE SET NULL,
     PRIMARY KEY (asin, kategorie_id)
 );
 
