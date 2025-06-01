@@ -202,8 +202,7 @@ public class ImportRest {
                 "    PRIMARY KEY (asin, kategorie_id) " +
                 "); "
             );
-
-            // --- Leipzig ---
+            // extrahiere aus Files
             File leipzigFile = new File("data", "leipzig_transformed.xml");
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
@@ -225,8 +224,7 @@ public class ImportRest {
                 String shopStreet = shopElement.getAttribute("street");
                 String shopZip = shopElement.getAttribute("zip");
                 shop_id++;
-                PreparedStatement psShop = conn.prepareStatement(
-                        "INSERT INTO shop (shop_id, name, street, zip) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement psShop = conn.prepareStatement("INSERT INTO shop (shop_id, name, street, zip) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING");
                 psShop.setInt(1, shop_id);
                 psShop.setString(2, shopName);
                 psShop.setString(3, shopStreet);
@@ -516,13 +514,11 @@ public class ImportRest {
             aspectratio = "Unknown";
         }
 
-        // Releasedate
-        String relDateStr = getText(dvdspecs, "releasedate");
-        LocalDate relDate;
-        try {
-            relDate = LocalDate.parse(relDateStr);
-        } catch (Exception e) {
-            relDate = LocalDate.now();
+        // Veröffentlichungsdatum
+        String pubDateStr = getText(dvdspecs, "releasedate");
+        LocalDate pubDate = null;
+        if (!pubDateStr.isEmpty()) {
+            pubDate = LocalDate.parse(pubDateStr);
         }
 
         // Theatr. Release
@@ -542,7 +538,11 @@ public class ImportRest {
         ps.setString(2, format);
         ps.setInt(3, region);
         ps.setInt(4, runtime);
-        ps.setDate(5, Date.valueOf(relDate));
+        if (pubDate != null) {
+            ps.setDate(5, Date.valueOf(pubDate));
+        } else {
+            ps.setNull(5, Types.DATE);
+        }
         ps.setString(6, aspectratio);
         ps.setString(7, upc);
         ps.setInt(8, theatr_elease);
@@ -590,10 +590,8 @@ public class ImportRest {
 
         // Veröffentlichungsdatum
         String pubDateStr = getText(musicspecs, "releasedate");
-        LocalDate pubDate;
-        if (pubDateStr == null || pubDateStr.isEmpty()) {
-            pubDate = LocalDate.now(); // oder null, je nach Wunsch
-        } else {
+        LocalDate pubDate = null;
+        if (!pubDateStr.isEmpty()) {
             pubDate = LocalDate.parse(pubDateStr);
         }
 
@@ -609,9 +607,13 @@ public class ImportRest {
         ps.setString(1, asin);
         ps.setString(2, binding);
         ps.setString(3, format);
-        ps.setInt(6, numDiscs);
-        ps.setDate(4, Date.valueOf(pubDate));
+        if (pubDate != null) {
+            ps.setDate(4, Date.valueOf(pubDate));
+        } else {
+            ps.setNull(4, Types.DATE);
+        }
         ps.setString(5, upc);
+        ps.setInt(6, numDiscs);
         ps.executeUpdate();
     }
 
