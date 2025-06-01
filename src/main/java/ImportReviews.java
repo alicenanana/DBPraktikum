@@ -3,6 +3,15 @@ import java.io.FileReader;
 import java.sql.*;
 import java.sql.Date;
 
+/**
+ * ImportReviews.java
+ * 
+ * This class imports reviews from a CSV file into a PostgreSQL database.
+ * It checks if the customer exists and creates a new customer if not.
+ * 
+ * Usage: Ensure the CSV file is located in the "media-store/data" directory and
+ * run this class.
+ */
 public class ImportReviews {
 
     public static void main(String[] args) {

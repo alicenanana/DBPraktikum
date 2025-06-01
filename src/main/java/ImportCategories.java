@@ -4,6 +4,17 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.*;
 
+/**
+ * ImportCategories.java
+ * 
+ * This class imports categories and their associated items from an XML file
+ * into a PostgreSQL database.
+ * It handles nested categories and ensures that items are linked to the correct
+ * categories.
+ * 
+ * Usage: Ensure the XML file is located in the "data" directory and run this
+ * class.
+ */
 public class ImportCategories {
 
     public static void main(String[] args) {
@@ -37,6 +48,16 @@ public class ImportCategories {
         }
     }
 
+    /**
+     * Processes a category element, inserting it into the database and recursively
+     * processing its children.
+     * 
+     * @param element  The XML element representing the category.
+     * @param parentId The ID of the parent category, or null if this is a top-level
+     *                 category.
+     * @param conn     The database connection.
+     * @throws Exception If an error occurs during processing.
+     */
     private static void processCategory(Element element, Integer parentId, Connection conn) throws Exception {
         String categoryName = getCategoryName(element);
         if (categoryName.isEmpty()) {
@@ -61,6 +82,12 @@ public class ImportCategories {
         }
     }
 
+    /**
+     * Extracts the category name from the XML element.
+     * 
+     * @param element The XML element representing the category.
+     * @return The trimmed category name, or an empty string if no text is found.
+     */
     private static String getCategoryName(Element element) {
         Node first = element.getFirstChild();
         if (first != null && first.getNodeType() == Node.TEXT_NODE) {
@@ -69,6 +96,17 @@ public class ImportCategories {
         return "";
     }
 
+    /**
+     * Retrieves the category ID if it exists, or inserts a new category and returns
+     * its ID.
+     * 
+     * @param conn     The database connection.
+     * @param name     The name of the category.
+     * @param parentId The ID of the parent category, or null if this is a top-level
+     *                 category.
+     * @return The ID of the category.
+     * @throws Exception If an error occurs during the database operation.
+     */
     private static int getOrInsertCategory(Connection conn, String name, Integer parentId) throws Exception {
         String query = "SELECT kategorie_id FROM kategorie WHERE name = ? AND "
                 + (parentId == null ? "eltern_id IS NULL" : "eltern_id = ?");
@@ -102,6 +140,14 @@ public class ImportCategories {
         throw new Exception("Kategorie konnte nicht eingefügt werden: " + name);
     }
 
+    /**
+     * Inserts an item-category association into the database.
+     * 
+     * @param conn       The database connection.
+     * @param asin       The ASIN of the item.
+     * @param categoryId The ID of the category to associate with the item.
+     * @throws Exception If an error occurs during the database operation.
+     */
     private static void insertItemCategory(Connection conn, String asin, int categoryId) throws Exception {
         if (asin.isEmpty())
             return;

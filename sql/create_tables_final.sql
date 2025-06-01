@@ -16,7 +16,7 @@ CREATE TABLE item (
     picture TEXT,
     detailpage TEXT,
     ean VARCHAR(60),
-    price DECIMAL(5,2) NOT NULL,
+    price DECIMAL(5,2),
     item_status VARCHAR(20),
     currency VARCHAR(10) NOT NULL
 );
