@@ -10,10 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -63,15 +61,13 @@ public class ImportRest {
                     salesrank = Integer.parseInt(product.getAttribute("salesrank"));
                 } catch (NumberFormatException e) {
                     salesrank = 0; 
-                }
-                
+                }         
 
                 // Titel
                 String title = getText(product, "title");
                 if (title.isEmpty()) {
                     title = "Unbekannter Titel"; 
                 }
-                
                 
                 //Preis
                 double price = 0.0;
@@ -191,7 +187,10 @@ public class ImportRest {
                 if (hasBookSpec || hasAuthors) pgroup = "Book";
                 else if (hasDvdSpec || hasActors) pgroup = "DVD";
                 else if (hasMusicSpec || hasTracks) pgroup = "Music";
-                else pgroup = "Unknown";
+                else { 
+                    illegalProductList.add(product);
+                    continue; 
+                }
             }
             System.out.println("Verarbeite nun PGROUP: " + pgroup + " fuer ASIN: " + asin);
 
@@ -556,10 +555,9 @@ public class ImportRest {
             String trackTitle = trackTitles.item(t).getTextContent().trim();
             if (!trackTitle.isEmpty()) {
                 int track_id = getOrCreate(conn, "track", trackTitle);
-                PreparedStatement pstrack = conn.prepareStatement("INSERT INTO item_track (asin, track_id, track_no) VALUES (?, ? ,?) ON CONFLICT DO NOTHING");
+                PreparedStatement pstrack = conn.prepareStatement("INSERT INTO item_track (asin, track_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 pstrack.setString(1, asin);
                 pstrack.setInt(2, track_id);
-                pstrack.setInt(3, t+1);
                 pstrack.executeUpdate();
             }
         }
