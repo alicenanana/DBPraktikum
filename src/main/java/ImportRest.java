@@ -430,6 +430,10 @@ public class ImportRest {
                         pricecurrency = priceElement.getAttribute("currency");
                     }
                     boolean vf_item = !(price <= 0.0 || pricecurrency == null || pricecurrency.isEmpty());
+                    if (price < 0.0 ) {
+                        logIllegal(product, "Preis ungültig", conn);
+                        continue;
+                    }
 
                     String picture = product.getAttribute("picture");
                     if (picture.isEmpty())
