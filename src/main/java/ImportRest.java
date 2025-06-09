@@ -28,7 +28,7 @@ public class ImportRest {
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
-        String password = "Robin2504!";
+        String password = "postgres";
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
             // Tabellen resetten
