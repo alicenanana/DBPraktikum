@@ -24,7 +24,7 @@ public class ImportCategories {
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {
 
-            File xmlFile = new File("data", "categories.xml");
+            File xmlFile = new File("media-store/data", "categories.xml");
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(xmlFile);

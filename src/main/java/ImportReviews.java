@@ -23,7 +23,7 @@ public class ImportReviews {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
         String password = "postgres";
-        String filePath = "data/reviews.csv";
+        String filePath = "media-store/data/reviews.csv";
 
         try (Connection conn = DriverManager.getConnection(url, user, password);
                 CSVReader reader = new CSVReader(new FileReader(filePath))) {
@@ -95,12 +95,13 @@ public class ImportReviews {
 
                     // Rezension einfügen
                     try (PreparedStatement stmt = conn.prepareStatement(
-                            "INSERT INTO rezension (kunden_id, asin, bewertung, text, rezensionsdatum) VALUES (?, ?, ?, ?, ?)")) {
+                            "INSERT INTO rezension (kunden_id, asin, bewertung, titel, text, rezensionsdatum) VALUES (?, ?, ?, ?, ?, ?)")) {
                         stmt.setInt(1, kunden_id);
                         stmt.setString(2, asin);
                         stmt.setInt(3, bewertung);
-                        stmt.setString(4, text);
-                        stmt.setDate(5, rezensionsdatum);
+                        stmt.setString(4, titel);
+                        stmt.setString(5, text);
+                        stmt.setDate(6, rezensionsdatum);
                         stmt.executeUpdate();
                         System.out.println("✓ Rezension importiert für ASIN " + asin + ", Kunde " + kunden_id);
                     }
