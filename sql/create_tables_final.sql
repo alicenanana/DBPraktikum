@@ -212,3 +212,5 @@ CREATE TABLE angebot (
     zustand TEXT,
     PRIMARY KEY (shop_id, asin)
 );
+
+-- nicht im gleichen shop ein produkt in unterschiedlichen zuständen und zu unterschiedlichen preisen
