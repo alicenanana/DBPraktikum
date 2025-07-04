@@ -8,7 +8,7 @@ GROUP BY pgroup;
 | Typ   | Anzahl |
 |-------|--------|
 | DVD   | 436    |
-| Book  | 697    |
+| Book  | 695    |
 | Music | 1841   |
 ---
 
