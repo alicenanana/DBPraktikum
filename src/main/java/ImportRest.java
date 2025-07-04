@@ -4,6 +4,7 @@ import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.time.LocalDate;
@@ -18,255 +19,43 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
-
 /**
  * ImportRest.java
  * Importiert Daten aus den Xml dateien Leipzig und Dresden
  * in eine PostgreSQL-Datenbank.
  */
 public class ImportRest {
-
+    
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
         String password = "postgres";
 
-        try (Connection conn = DriverManager.getConnection(url, user, password)) {
-            // Tabellen resetten
-            Statement stmt = conn.createStatement();
-            // --- Drop all tables and recreate schema ---
-            stmt.executeUpdate(
-                    "DROP TABLE IF EXISTS item_kategorie,item_person,item_label,item_publisher," +
-                            "item_studio,item_listmania,similar_product,item_track,track,item_audiotext," +
-                            "audiotext,bookspec,musicspec,dvdspec,kategorie,publisher,label,studio,listmania," +
-                            "person,illegal_data,item,kunde,bestellung,bestellposition,rezension,angebot,shop CASCADE;");
+        try (Connection conn = DriverManager.getConnection(url, user, password)) {                       
+            
+            // Erstelle die Datenbanktabellen, falls sie noch nicht existieren
+            createDBTables(conn);
 
-            // Shop
-            stmt.executeUpdate(
-                    "CREATE TABLE shop (" +
-                            "    shop_id SERIAL PRIMARY KEY," +
-                            "    name VARCHAR(50) UNIQUE," +
-                            "    street VARCHAR(50)," +
-                            "    zip VARCHAR(20));");
-
-            // Item (gemeinsam für Bücher, DVDs, Music)
-            stmt.executeUpdate(
-                    "CREATE TABLE item (" +
-                            "    shop_id INT REFERENCES shop(shop_id) ON DELETE SET NULL," +
-                            "    asin VARCHAR(40) PRIMARY KEY," +
-                            "    pgroup VARCHAR(40) NOT NULL CHECK (pgroup IN ('Book', 'DVD', 'Music'))," +
-                            "    title TEXT NOT NULL," +
-                            "    salesrank INT," +
-                            "    picture TEXT," +
-                            "    detailpage TEXT," +
-                            "    ean VARCHAR(60)," +
-                            "    price DECIMAL(5,2) NOT NULL," +
-                            "    item_status VARCHAR(20)," +
-                            "    currency VARCHAR(10) NOT NULL);");
-
-            // Buch
-            stmt.executeUpdate(
-                    "CREATE TABLE bookspec (" +
-                            "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    binding VARCHAR(80)," +
-                            "    edition VARCHAR(80)," +
-                            "    isbn VARCHAR(40) NOT NULL," +
-                            "    weight VARCHAR(30)," +
-                            "    height VARCHAR(30)," +
-                            "    length VARCHAR(30)," +
-                            "    pages INT," +
-                            "    publication_date DATE);");
-
-            // Musiks
-            stmt.executeUpdate(
-                    "CREATE TABLE musicspec (" +
-                            "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    binding VARCHAR(50)," +
-                            "    format VARCHAR(150)," +
-                            "    num_discs INT," +
-                            "    releasedate DATE," +
-                            "    upc VARCHAR(40));");
-
-            // DVD
-            stmt.executeUpdate(
-                    "CREATE TABLE dvdspec (" +
-                            "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    aspectratio VARCHAR(80)," +
-                            "    format VARCHAR(100)," +
-                            "    regioncode INT," +
-                            "    releasedate DATE," +
-                            "    runningtime INT," +
-                            "    theatr_release INT," +
-                            "    upc VARCHAR(60));");
-
-            // Tracks (für Music-CDs)
-            stmt.executeUpdate(
-                    "CREATE TABLE track (" +
-                            "    track_id SERIAL PRIMARY KEY," +
-                            "    name TEXT);");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_track (" +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    track_id INT REFERENCES track(track_id) ON DELETE CASCADE," +
-                            "    PRIMARY KEY (asin, track_id));");
-
-            // Similar Products
-            stmt.executeUpdate(
-                    "CREATE TABLE similar_product (" +
-                            "    sim_id SERIAL PRIMARY KEY," +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    sim_asin VARCHAR(40));");
-
-            // Audiotext (Mehrsprachige Angaben)
-            stmt.executeUpdate(
-                    "CREATE TABLE audiotext (" +
-                            "    audiotext_id SERIAL PRIMARY KEY," +
-                            "    lang_type VARCHAR(50)," +
-                            "    language VARCHAR(50)," +
-                            "    audioformat VARCHAR(100));");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_audiotext (" +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    audiotext_id INT REFERENCES audiotext(audiotext_id) ON DELETE CASCADE," +
-                            "    PRIMARY KEY (asin, audiotext_id));");
-
-            // Publisher
-            stmt.executeUpdate(
-                    "CREATE TABLE publisher (" +
-                            "    publisher_id SERIAL PRIMARY KEY," +
-                            "    name VARCHAR(100));");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_publisher (" +
-                            "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    publisher_id INT REFERENCES publisher(publisher_id) ON DELETE CASCADE," +
-                            "    PRIMARY KEY (asin, publisher_id));");
-
-            // Label
-            stmt.executeUpdate(
-                    "CREATE TABLE label (" +
-                            "    label_id SERIAL PRIMARY KEY," +
-                            "    name VARCHAR(100));");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_label (" +
-                            "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    label_id INT REFERENCES label(label_id) ON DELETE CASCADE," +
-                            "    PRIMARY KEY (asin, label_id));");
-
-            // Studio
-            stmt.executeUpdate(
-                    "CREATE TABLE studio (" +
-                            "    studio_id SERIAL PRIMARY KEY," +
-                            "    name VARCHAR(100));");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_studio (" +
-                            "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    studio_id INT REFERENCES studio(studio_id) ON DELETE CASCADE," +
-                            "    PRIMARY KEY (asin, studio_id));");
-
-            // Listmania
-            stmt.executeUpdate(
-                    "CREATE TABLE listmania (" +
-                            "    list_id SERIAL PRIMARY KEY," +
-                            "    name TEXT);");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_listmania (" +
-                            "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    list_id INT REFERENCES listmania(list_id) ON DELETE CASCADE," +
-                            "    PRIMARY KEY (asin, list_id));");
-
-            // Person rolle nur bei item_person
-            stmt.executeUpdate(
-                    "CREATE TABLE person (" +
-                            "    person_id SERIAL PRIMARY KEY," +
-                            "    name VARCHAR(100));");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_person (" +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    person_id INT REFERENCES person(person_id) ON DELETE CASCADE," +
-                            "    person_role VARCHAR(20)," +
-                            "    PRIMARY KEY (asin, person_id));");
-
-            // Kategorie
-            stmt.executeUpdate(
-                    "CREATE TABLE kategorie (" +
-                            "    kategorie_id SERIAL PRIMARY KEY," +
-                            "    name TEXT NOT NULL," +
-                            "    eltern_id INT REFERENCES kategorie(kategorie_id) ON DELETE CASCADE);");
-            stmt.executeUpdate(
-                    "CREATE TABLE item_kategorie (" +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE SET NULL," +
-                            "    PRIMARY KEY (asin, kategorie_id));");
-
-            // Illegal Data
-            stmt.executeUpdate(
-                    "CREATE TABLE illegal_data (" +
-                            "    illegal_id SERIAL PRIMARY KEY," +
-                            "    asin VARCHAR(40)," +
-                            "    pgroup VARCHAR(40)," +
-                            "    title TEXT," +
-                            "    error_message TEXT," +
-                            "    import_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);");
-
-            // Kunden und Bestellungen
-            stmt.executeUpdate(
-                    "CREATE TABLE kunde (" +
-                            "    kunden_id SERIAL PRIMARY KEY," +
-                            "    username TEXT UNIQUE NOT NULL," +
-                            "    mail TEXT UNIQUE," +
-                            "    adresse TEXT," +
-                            "    konto_nr TEXT);");
-            stmt.executeUpdate(
-                    "CREATE TABLE bestellung (" +
-                            "    bestellung_id SERIAL PRIMARY KEY," +
-                            "    kunden_id INT REFERENCES kunde(kunden_id) ON DELETE CASCADE," +
-                            "    kaufdatum TIMESTAMP);");
-            stmt.executeUpdate(
-                    "CREATE TABLE bestellposition (" +
-                            "    bestellung_id INT REFERENCES bestellung(bestellung_id) ON DELETE CASCADE," +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    PRIMARY KEY (bestellung_id, asin));");
-            stmt.executeUpdate(
-                    "CREATE TABLE rezension (" +
-                            "    rezension_id SERIAL PRIMARY KEY," +
-                            "    kunden_id INT REFERENCES kunde(kunden_id) ON DELETE CASCADE," +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    bewertung INT CHECK (bewertung BETWEEN 1 AND 5)," +
-                            "    titel TEXT," +
-                            "    text TEXT," +
-                            "    rezensionsdatum TIMESTAMP);");
-
-            // Angebot je Shop
-            stmt.executeUpdate(
-                    "CREATE TABLE angebot (" +
-                            "    shop_id INT REFERENCES shop(shop_id) ON DELETE CASCADE," +
-                            "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                            "    preis DECIMAL(5,2)," +
-                            "    verfuegbar BOOLEAN," +
-                            "    zustand TEXT," +
-                            "    PRIMARY KEY (shop_id, asin));");
-            // extrahiere aus Files
-            File leipzigFile = new File("media-store/data", "leipzig_transformed.xml");
+            // Lade die XML-Dateien
+            File leipzigFile = new File("data", "leipzig_transformed.xml");
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document leipzigDoc = builder.parse(leipzigFile);
             leipzigDoc.getDocumentElement().normalize();
-
-            File dresdenFile = new File("media-store/data", "dresden.xml");
+            File dresdenFile = new File("data", "dresden.xml");
             Document dresdenDoc = builder.parse(dresdenFile);
             dresdenDoc.getDocumentElement().normalize();
-
             List<Document> Shops = new ArrayList<>();
             Shops.add(leipzigDoc);
             Shops.add(dresdenDoc);
 
+            
             for (Document activeShop : Shops) {
                 Element shopElement = (Element) activeShop.getElementsByTagName("shop").item(0);
                 String shopName = shopElement.getAttribute("name");
                 String shopStreet = shopElement.getAttribute("street");
                 String shopZip = shopElement.getAttribute("zip");
-                PreparedStatement psShop = conn.prepareStatement(
-                        "INSERT INTO shop (name, street, zip) VALUES (?, ?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement psShop = conn.prepareStatement("INSERT INTO shop (name, street, zip) VALUES (?, ?, ?) ON CONFLICT DO NOTHING");
                 psShop.setString(1, shopName);
                 psShop.setString(2, shopStreet);
                 psShop.setString(3, shopZip);
@@ -278,13 +67,7 @@ public class ImportRest {
                     shop_id = 2;
                 }
 
-                for (int i = 0; i < 3; i++) {
-                    System.out.println("");
-                }
-                System.out.println("Starte Import für " + shopName + "...");
-                for (int i = 0; i < 3; i++) {
-                    System.out.println("");
-                }
+                System.out.println("\n\n\nStarte Import für " + shopName +"...\n\n\n");
 
                 // Filtere nur Haupt-<item>-Elemente (direkte Kinder des Wurzelelements)
                 NodeList allItems = activeShop.getElementsByTagName("item");
@@ -297,13 +80,34 @@ public class ImportRest {
                 }
                 for (Element product : productList) {
                     String asin = product.getAttribute("asin");
-                    if (asin.isEmpty() || asin.length() > 20) {
+                    if (asin.isEmpty() || asin.length() != 10) {
                         logIllegal(product, "ASIN ungültig oder leer", conn);
                         continue;
-                    }
-
+                        }
                     String pgroup = product.getAttribute("pgroup").trim();
-                    if (pgroup.matches("(?i)AUDIO-CD|CD|MUSIKKASSETTE|VINYL  LP|Musical|Music")) {
+
+                    // Füge das Produkt in die Datenbank ein
+                    insertitem(conn, product, asin, shop_id, pgroup);
+                }
+                System.out.println("\n\n\nImport abgeschlossen. "+ shopName +" mit " + productList.size() + " Produkten.\n\n\n");
+            }
+        } catch (Exception e) {
+            System.err.println("An error occurred: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Fügt einen Eintrag in die item-Tabelle ein, wenn die ASIN gültig ist.
+     * @param conn Die Datenbankverbindung
+     * @param product Das Produkt-Element
+     * @param asin Die ASIN des Produkts
+     * @param shop_id Die ID des Shops
+     * @param pgroup Die Produktgruppe
+     * @throws Exception Wenn ein Fehler auftritt
+     * 
+     */
+    static void insertitem(Connection conn, Element product, String asin, int shop_id, String pgroup) throws Exception {
+        if (pgroup.matches("(?i)AUDIO-CD|CD|MUSIKKASSETTE|VINYL  LP|Musical|Music")) {
                         pgroup = "Music";
                     } else if (pgroup.matches("(?i)DVD + CD|DVD")) {
                         pgroup = "DVD";
@@ -325,11 +129,11 @@ public class ImportRest {
                             pgroup = "Music";
                         else {
                             logIllegal(product, "pgroup ungültig oder leer", conn);
-                            continue;
+                            return;
                         }
 
                     }
-
+                    
                     System.out.println("Verarbeite nun PGROUP: " + pgroup + " fuer ASIN: " + asin);
 
                     switch (pgroup) {
@@ -339,7 +143,7 @@ public class ImportRest {
                             String isbn = isbnele.getAttribute("val");
                             if (isbn.isEmpty() || 10 > isbn.length() || isbn.length() > 13) {
                                 logIllegal(product, "Isbn leer oder ungültig", conn);
-                                continue;
+                                return;
                             }
                             break;
                         }
@@ -352,13 +156,13 @@ public class ImportRest {
                                 String upc = upcElement.getAttribute("val");
                                 if (upc.length() != 8 && upc.length() != 12) {
                                     logIllegal(product, "upc ungültig", conn);
-                                    continue;
+                                    return;
                                 }
                             } else if (!regionStr.isEmpty()) {
                                 region = Integer.parseInt(regionStr);
                                 if (region < 0 || region > 8) {
                                     logIllegal(product, "Region ungültig", conn);
-                                    continue;
+                                    return;
                                 }
                             }
                             break;
@@ -368,7 +172,7 @@ public class ImportRest {
                             String upc = getText(musicspec, "upc");
                             if (upc != null && !upc.isEmpty() && (upc.length() != 8 && upc.length() != 12)) {
                                 logIllegal(product, "upc ungültig", conn);
-                                continue;
+                                return;
                             }
                             break;
                         }
@@ -379,8 +183,9 @@ public class ImportRest {
                     String title = getText(product, "title");
                     if (title.isEmpty()) {
                         logIllegal(product, "Titel leer", conn);
-                        continue;
+                        return;
                     }
+
 
                     int salesrank = 0;
                     try {
@@ -388,26 +193,14 @@ public class ImportRest {
                     } catch (NumberFormatException ignored) {
                     }
 
-                    double price = 0.0;
-                    String pricestate = null, pricecurrency = null;
-                    NodeList priceNodes = product.getElementsByTagName("price");
-                    if (priceNodes.getLength() > 0) {
-                        Element priceElement = (Element) priceNodes.item(0);
-                        try {
-                            double mult = priceElement.hasAttribute("mult")
-                                    ? Double.parseDouble(priceElement.getAttribute("mult"))
-                                    : 0.01;
-                            int basePrice = Integer.parseInt(priceElement.getTextContent().trim());
-                            price = basePrice * mult;
-                        } catch (NumberFormatException ignored) {
-                        }
-                        pricestate = priceElement.getAttribute("state");
-                        pricecurrency = priceElement.getAttribute("currency");
-                    }
-                    boolean vf_item = !(price <= 0.0 || pricecurrency == null || pricecurrency.isEmpty());
-                    if (price < 0.0) {
-                        logIllegal(product, "Preis ungültig", conn);
-                        continue;
+
+                    String ean = product.getAttribute("ean");
+                    if (ean.isEmpty()) {
+                        ean = getText(product, "ean");
+                    } 
+                    if(ean.length() != 8 && ean.length() != 13) {
+                        logIllegal(product, "EAN ungültig ", conn);
+                        return;
                     }
 
                     String picture = product.getAttribute("picture");
@@ -417,44 +210,27 @@ public class ImportRest {
                     String detailPage = product.getAttribute("detailpage");
                     if (detailPage.isEmpty())
                         detailPage = "No Detail Page";
+                    
+                    boolean preiserr = LegalPreis(conn, product, asin, shop_id, pgroup);
+                    if (!preiserr) {return;}
 
-                    String ean = product.getAttribute("ean");
-                    if (ean.isEmpty()) {
-                        ean = getText(product, "ean");
+                    if(!itemExists(conn, asin)){
+                        PreparedStatement psItem = conn.prepareStatement(
+                            "INSERT INTO item ( asin, pgroup, title, salesrank, picture, detailpage,"
+                            + "ean, shop_id) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING");
+                        psItem.setString(1, asin);
+                        psItem.setString(2, pgroup);
+                        psItem.setString(3, title);
+                        psItem.setInt(4, salesrank);
+                        psItem.setString(5, picture);
+                        psItem.setString(6, detailPage);
+                        psItem.setString(7, ean);
+                        psItem.setInt(8, shop_id);
+                        psItem.executeUpdate();
+                        System.out.println("ASIN: " + asin + " mit PGROUP: " + pgroup + " erfolgreich in die Datenbank eingefügt.");
                     }
-                    if (ean.length() != 8 && ean.length() != 13) {
-                        logIllegal(product, "EAN ungültig ", conn);
-                        continue;
-                    }
-
-                    PreparedStatement psItem = conn.prepareStatement(
-                            "INSERT INTO item ( asin, pgroup, title, salesrank, price, picture, detailpage,"
-                                    + "ean, item_status, currency, shop_id) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING");
-                    psItem.setString(1, asin);
-                    psItem.setString(2, pgroup);
-                    psItem.setString(3, title);
-                    psItem.setInt(4, salesrank);
-                    psItem.setDouble(5, price);
-                    psItem.setString(6, picture);
-                    psItem.setString(7, detailPage);
-                    psItem.setString(8, ean);
-                    psItem.setString(9, pricestate);
-                    psItem.setString(10, pricecurrency);
-                    psItem.setInt(11, shop_id);
-                    psItem.executeUpdate();
-
-                    System.out.println(
-                            "ASIN: " + asin + " mit PGROUP: " + pgroup + " erfolgreich in die Datenbank eingefügt.");
-
-                    PreparedStatement Verfügbar = conn.prepareStatement(
-                            "INSERT INTO angebot (shop_id, asin, preis, verfuegbar, zustand) VALUES (?, ?, ?, ?, ?) ON CONFLICT (shop_id, asin) DO NOTHING");
-                    Verfügbar.setInt(1, shop_id);
-                    Verfügbar.setString(2, asin);
-                    Verfügbar.setDouble(3, price);
-                    Verfügbar.setBoolean(4, vf_item); // Standardmäßig verfügbar
-                    Verfügbar.setString(5, pricestate); // Standardmäßig Zustand "Neu"
-                    Verfügbar.executeUpdate();
-
+                    importPreis(conn, product, asin, shop_id, pgroup);
+                    
                     switch (pgroup) {
                         case "Book":
                             insertBook(conn, product, asin);
@@ -470,26 +246,12 @@ public class ImportRest {
                             break;
                     }
                 }
-
-                for (int i = 0; i < 3; i++) {
-                    System.out.println("");
-                }
-                System.out.println("Import abgeschlossen. " + shopName + " mit " + productList.size() + " Produkten.");
-                for (int i = 0; i < 3; i++) {
-                    System.out.println("");
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("An error occurred: " + e.getMessage());
-        }
-    }
-
+    
     /**
      * Fügt die Buchspezifikationen in die Datenbank ein.
-     * 
-     * @param conn    Die Datenbankverbindung
+     * @param conn Die Datenbankverbindung
      * @param product Das Produkt-Element
-     * @param asin    Die ASIN des Produkts
+     * @param asin Die ASIN des Produkts
      * @throws Exception Wenn ein Fehler auftritt
      */
     static void insertBook(Connection conn, Element product, String asin) throws Exception {
@@ -562,9 +324,9 @@ public class ImportRest {
         }
 
         PreparedStatement ps = conn.prepareStatement(
-                "INSERT INTO bookspec (asin, binding, edition, isbn, pages, publication_date, height, weight, length)VALUES"
-                        +
-                        "(?, ?, ?, ?, ?, ?, ?, ?, ?) On CONFLICT (asin) DO NOTHING");
+            "INSERT INTO bookspec (asin, binding, edition, isbn, pages, publication_date, height, weight, length)VALUES" +
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?) On CONFLICT (asin) DO NOTHING"
+        );
         ps.setString(1, asin);
         ps.setString(2, binding);
         ps.setString(3, edition);
@@ -583,10 +345,9 @@ public class ImportRest {
 
     /**
      * Fügt die DVD-Spezifikationen in die Datenbank ein.
-     * 
-     * @param conn    Die Datenbankverbindung
+     * @param conn Die Datenbankverbindung
      * @param product Das Produkt-Element
-     * @param asin    Die ASIN des Produkts
+     * @param asin Die ASIN des Produkts
      * @throws Exception Wenn ein Fehler auftritt
      */
     static void insertDVD(Connection conn, Element product, String asin) throws Exception {
@@ -651,9 +412,9 @@ public class ImportRest {
         }
 
         PreparedStatement ps = conn.prepareStatement(
-                "INSERT INTO dvdspec (asin, format, regioncode, runningtime, releasedate, aspectratio, upc, theatr_release)"
-                        +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING");
+            "INSERT INTO dvdspec (asin, format, regioncode, runningtime, releasedate, aspectratio, upc, theatr_release)" +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING"
+        );
         ps.setString(1, asin);
         ps.setString(2, format);
         ps.setInt(3, region);
@@ -671,10 +432,9 @@ public class ImportRest {
 
     /**
      * Fügt die Musik-Spezifikationen in die Datenbank ein.
-     * 
-     * @param conn    Die Datenbankverbindung
+     * @param conn Die Datenbankverbindung
      * @param product Das Produkt-Element
-     * @param asin    Die ASIN des Produkts
+     * @param asin Die ASIN des Produkts
      * @throws Exception Wenn ein Fehler auftritt
      */
     static void insertMusic(Connection conn, Element product, String asin) throws Exception {
@@ -723,7 +483,8 @@ public class ImportRest {
         }
 
         PreparedStatement ps = conn.prepareStatement(
-                "INSERT INTO musicspec (asin, binding, format, releasedate, upc, num_discs) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING");
+            "INSERT INTO musicspec (asin, binding, format, releasedate, upc, num_discs) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (asin) DO NOTHING"
+        );
         ps.setString(1, asin);
         ps.setString(2, binding);
         ps.setString(3, format);
@@ -738,12 +499,10 @@ public class ImportRest {
     }
 
     /**
-     * Fügt die restlichen Informationen (Labels, Tracks, Listmania, Studios, etc.)
-     * in die Datenbank ein.
-     * 
-     * @param conn    Die Datenbankverbindung
+     * Fügt die restlichen Informationen (Labels, Tracks, Listmania, Studios, etc.) in die Datenbank ein.
+     * @param conn Die Datenbankverbindung
      * @param product Das Produkt-Element
-     * @param asin    Die ASIN des Produkts
+     * @param asin Die ASIN des Produkts
      * @throws Exception Wenn ein Fehler auftritt
      */
     static void insertRest(Connection conn, Element product, String asin) throws Exception {
@@ -752,8 +511,7 @@ public class ImportRest {
         for (String labelName : labelNames) {
             if (!labelName.isEmpty()) {
                 int labelId = getOrCreate(conn, "label", labelName);
-                PreparedStatement pslabel = conn.prepareStatement(
-                        "INSERT INTO item_label (asin, label_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement pslabel = conn.prepareStatement("INSERT INTO item_label (asin, label_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 pslabel.setString(1, asin);
                 pslabel.setInt(2, labelId);
                 pslabel.executeUpdate();
@@ -766,8 +524,7 @@ public class ImportRest {
             String trackTitle = trackTitles.item(t).getTextContent().trim();
             if (!trackTitle.isEmpty()) {
                 int track_id = getOrCreate(conn, "track", trackTitle);
-                PreparedStatement pstrack = conn.prepareStatement(
-                        "INSERT INTO item_track (asin, track_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement pstrack = conn.prepareStatement("INSERT INTO item_track (asin, track_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 pstrack.setString(1, asin);
                 pstrack.setInt(2, track_id);
                 pstrack.executeUpdate();
@@ -783,8 +540,7 @@ public class ImportRest {
         for (String listmaniaName : listmaniaNames) {
             if (!listmaniaName.isEmpty()) {
                 int listmaniaId = getOrCreateListmania(conn, listmaniaName);
-                PreparedStatement pslistmania = conn.prepareStatement(
-                        "INSERT INTO item_listmania (asin, list_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement pslistmania = conn.prepareStatement("INSERT INTO item_listmania (asin, list_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 pslistmania.setString(1, asin);
                 pslistmania.setInt(2, listmaniaId);
                 pslistmania.executeUpdate();
@@ -798,8 +554,7 @@ public class ImportRest {
             for (String studioName : studioNames) {
                 if (!studioName.isEmpty()) {
                     int studioId = getOrCreate(conn, "studio", studioName);
-                    try (PreparedStatement ps = conn.prepareStatement(
-                            "INSERT INTO item_studio (asin, studio_id) VALUES (?, ?) ON CONFLICT DO NOTHING")) {
+                    try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_studio (asin, studio_id) VALUES (?, ?) ON CONFLICT DO NOTHING")) {
                         ps.setString(1, asin);
                         ps.setInt(2, studioId);
                         ps.executeUpdate();
@@ -813,8 +568,7 @@ public class ImportRest {
         for (Map<String, String> simProduct : similarProducts) {
             String simAsin = simProduct.get("asin");
             if (simAsin != null && !simAsin.isEmpty()) {
-                PreparedStatement pssim = conn.prepareStatement(
-                        "INSERT INTO similar_product (asin, sim_asin) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement pssim = conn.prepareStatement("INSERT INTO similar_product (asin, sim_asin) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 pssim.setString(1, asin);
                 pssim.setString(2, simAsin);
                 pssim.executeUpdate();
@@ -827,8 +581,7 @@ public class ImportRest {
         for (String name : actorNames) {
             if (!name.isEmpty()) {
                 int personId = getOrCreate(conn, "person", name);
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'actor') ON CONFLICT DO NOTHING")) {
+                try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'actor') ON CONFLICT DO NOTHING")) {
                     ps.setString(1, asin);
                     ps.setInt(2, personId);
                     ps.executeUpdate();
@@ -841,8 +594,7 @@ public class ImportRest {
         for (String name : artistNames) {
             if (!name.isEmpty()) {
                 int personId = getOrCreate(conn, "person", name);
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'artist') ON CONFLICT DO NOTHING")) {
+                try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'artist') ON CONFLICT DO NOTHING")) {
                     ps.setString(1, asin);
                     ps.setInt(2, personId);
                     ps.executeUpdate();
@@ -854,8 +606,7 @@ public class ImportRest {
         for (String name : authorNames) {
             if (!name.isEmpty()) {
                 int personId = getOrCreate(conn, "person", name);
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'author') ON CONFLICT DO NOTHING")) {
+                try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'author') ON CONFLICT DO NOTHING")) {
                     ps.setString(1, asin);
                     ps.setInt(2, personId);
                     ps.executeUpdate();
@@ -868,8 +619,7 @@ public class ImportRest {
         for (String name : creatorNames) {
             if (!name.isEmpty()) {
                 int personId = getOrCreate(conn, "person", name);
-                try (PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'creator') ON CONFLICT DO NOTHING")) {
+                try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_person (asin, person_id, person_role) VALUES (?, ?, 'creator') ON CONFLICT DO NOTHING")) {
                     ps.setString(1, asin);
                     ps.setInt(2, personId);
                     ps.executeUpdate();
@@ -882,8 +632,7 @@ public class ImportRest {
         for (String publisherName : publisherNames) {
             if (!publisherName.isEmpty()) {
                 int publisherId = getOrCreate(conn, "publisher", publisherName);
-                PreparedStatement pspublisher = conn.prepareStatement(
-                        "INSERT INTO item_publisher (asin, publisher_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement pspublisher = conn.prepareStatement("INSERT INTO item_publisher (asin, publisher_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 pspublisher.setString(1, asin);
                 pspublisher.setInt(2, publisherId);
                 pspublisher.executeUpdate();
@@ -904,8 +653,7 @@ public class ImportRest {
                 String language = langElement.getTextContent().trim();
                 String audioFormat = formats.item(j).getTextContent().trim();
                 int audiotextId = getOrCreateAtext(conn, langType, language, audioFormat);
-                PreparedStatement psItemAudio = conn.prepareStatement(
-                        "INSERT INTO item_audiotext (asin, audiotext_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
+                PreparedStatement psItemAudio = conn.prepareStatement("INSERT INTO item_audiotext (asin, audiotext_id) VALUES (?, ?) ON CONFLICT DO NOTHING");
                 psItemAudio.setString(1, asin);
                 psItemAudio.setInt(2, audiotextId);
                 psItemAudio.executeUpdate();
@@ -914,25 +662,24 @@ public class ImportRest {
     }
 
     /**
-     * Holt die ID eines Eintrags aus der Datenbank oder erstellt einen neuen
-     * Eintrag, falls dieser nicht existiert.
-     * 
-     * @param conn  Die Datenbankverbindung
+     * Holt die ID eines Eintrags aus der Datenbank oder erstellt einen neuen Eintrag, falls dieser nicht existiert.
+     * @param conn Die Datenbankverbindung
      * @param table Der Name der Tabelle
-     * @param name  Der Name des Eintrags
+     * @param name Der Name des Eintrags
      * @return Die ID des Eintrags
      * @throws Exception Wenn ein Fehler auftritt
      */
     static int getOrCreate(Connection conn, String table, String name) throws Exception {
         PreparedStatement psSel = conn.prepareStatement(
-                "SELECT " + table + "_id FROM " + table + " WHERE name = ?");
+            "SELECT " + table + "_id FROM " + table + " WHERE name = ?"
+        );
         psSel.setString(1, name);
         ResultSet rs = psSel.executeQuery();
-        if (rs.next())
-            return rs.getInt(1);
+        if (rs.next()) return rs.getInt(1);
 
         PreparedStatement psIns = conn.prepareStatement(
-                "INSERT INTO " + table + " (name) VALUES (?) RETURNING " + table + "_id");
+            "INSERT INTO " + table + " (name) VALUES (?) RETURNING " + table + "_id"
+        );
         psIns.setString(1, name);
         rs = psIns.executeQuery();
         rs.next();
@@ -940,29 +687,61 @@ public class ImportRest {
     }
 
     /**
-     * Holt die ID eines Audiotexts oder erstellt einen neuen Eintrag, falls dieser
-     * nicht existiert.
-     * 
-     * @param conn        Die Datenbankverbindung
-     * @param langType    Der Typ der Sprache (z.B. "audio", "text")
-     * @param language    Die Sprache (z.B. "Deutsch", "Englisch")
+     * Holt eine Liste von Attributwerten für ein bestimmtes Element und Attribut.
+     * @param element Das Element, in dem die Attribute gesucht werden
+     * @param tagName Der Name des Tags, dessen Attribute gesucht werden
+     * @param attrName Der Name des Attributs, dessen Werte zurückgegeben werden sollen
+     * @return Eine Liste von Attributwerten
+     */
+    static boolean itemExists(Connection conn, String asin) throws Exception {
+        PreparedStatement psSel = conn.prepareStatement(
+            "SELECT 1 FROM item WHERE asin = ?"
+        );
+        psSel.setString(1, asin);
+        ResultSet rs = psSel.executeQuery();
+        return rs.next();
+    }
+
+    /**
+     * Prüft, ob ein Eintrag in der item_status-Tabelle für eine bestimmte ASIN und einen bestimmten Status existiert.
+     * @param conn Die Datenbankverbindung
+     * @param asin Die ASIN des Eintrags
+     * @param status Der Status des Eintrags
+     * @return true, wenn der Eintrag existiert, sonst false
+     * @throws Exception Wenn ein Fehler auftritt
+     */
+    static boolean item_status_exists(Connection conn, String asin, String status) throws Exception {
+        PreparedStatement psSel = conn.prepareStatement(
+            "SELECT 1 FROM item_status WHERE asin = ? AND item_status = ?"
+        );
+        psSel.setString(1, asin);
+        psSel.setString(2, status);
+        ResultSet rs = psSel.executeQuery();
+        return rs.next();
+    }
+    
+    /**
+     * Holt die ID eines Audiotexts oder erstellt einen neuen Eintrag, falls dieser nicht existiert.
+     * @param conn Die Datenbankverbindung
+     * @param langType Der Typ der Sprache (z.B. "audio", "text")
+     * @param language Die Sprache (z.B. "Deutsch", "Englisch")
      * @param audioFormat Das Audioformat (z.B. "MP3", "WAV")
      * @return Die ID des Audiotexts
      * @throws Exception Wenn ein Fehler auftritt
      */
-    static int getOrCreateAtext(Connection conn, String langType, String language, String audioFormat)
-            throws Exception {
+    static int getOrCreateAtext(Connection conn, String langType, String language, String audioFormat) throws Exception {
         PreparedStatement psSel = conn.prepareStatement(
-                "SELECT audiotext_id FROM audiotext WHERE lang_type = ? AND language = ? AND audioformat = ?");
+            "SELECT audiotext_id FROM audiotext WHERE lang_type = ? AND language = ? AND audioformat = ?"
+        );
         psSel.setString(1, langType);
         psSel.setString(2, language);
         psSel.setString(3, audioFormat);
         ResultSet rs = psSel.executeQuery();
-        if (rs.next())
-            return rs.getInt(1);
+        if (rs.next()) return rs.getInt(1);
 
         PreparedStatement psIns = conn.prepareStatement(
-                "INSERT INTO audiotext (lang_type, language, audioformat) VALUES (?, ?, ?) RETURNING audiotext_id");
+            "INSERT INTO audiotext (lang_type, language, audioformat) VALUES (?, ?, ?) RETURNING audiotext_id"
+        );
         psIns.setString(1, langType);
         psIns.setString(2, language);
         psIns.setString(3, audioFormat);
@@ -972,9 +751,7 @@ public class ImportRest {
     }
 
     /**
-     * Holt die ID eines Listmania-Eintrags oder erstellt einen neuen Eintrag, falls
-     * dieser nicht existiert.
-     * 
+     * Holt die ID eines Listmania-Eintrags oder erstellt einen neuen Eintrag, falls dieser nicht existiert.
      * @param conn Die Datenbankverbindung
      * @param name Der Name der Listmania
      * @return Die ID des Listmania-Eintrags
@@ -983,21 +760,28 @@ public class ImportRest {
     static int getOrCreateListmania(Connection conn, String name) throws Exception {
         // Erst prüfen, ob der Name schon existiert
         PreparedStatement psSel = conn.prepareStatement(
-                "SELECT list_id FROM listmania WHERE name = ?");
+            "SELECT list_id FROM listmania WHERE name = ?"
+        );
         psSel.setString(1, name);
         ResultSet rs = psSel.executeQuery();
-        if (rs.next())
-            return rs.getInt(1);
+        if (rs.next()) return rs.getInt(1);
 
         // Falls nicht vorhanden: einfügen und ID zurückgeben
         PreparedStatement psIns = conn.prepareStatement(
-                "INSERT INTO listmania (name) VALUES (?) RETURNING list_id");
+            "INSERT INTO listmania (name) VALUES (?) RETURNING list_id"
+        );
         psIns.setString(1, name);
         rs = psIns.executeQuery();
         rs.next();
         return rs.getInt(1);
     }
 
+    /**
+     * Holt den Textinhalt eines bestimmten Tags innerhalb eines Elements.
+     * @param element Das Element, in dem der Tag gesucht wird
+     * @param tag Der Name des Tags
+     * @return Der Textinhalt des Tags oder ein leerer String, wenn der Tag nicht gefunden wurde
+     */
     static String getText(Element element, String tag) {
         NodeList nl = element.getElementsByTagName(tag);
         if (nl.getLength() > 0 && nl.item(0).getTextContent() != null) {
@@ -1005,6 +789,138 @@ public class ImportRest {
         }
         return "";
     }
+
+    
+
+    static void importPreis(Connection conn, Element product, String asin, int shop_id, String pgroup) throws Exception {
+        class ItemState {
+                        double price;
+                        String pricestate;
+                        String pricecurrency;
+                        boolean vf_item;
+
+                        ItemState(double price, String pricestate, String pricecurrency, boolean vf_item) {
+                            this.price = price;
+                            this.pricestate = pricestate;
+                            this.pricecurrency = pricecurrency;
+                            this.vf_item = vf_item;
+                        }
+                    }
+
+                    NodeList priceNodes = product.getElementsByTagName("price");
+                    List<ItemState> itemStates = new ArrayList<>();
+                    for (int p = 0; p < priceNodes.getLength(); p++) {
+                        Element priceElement = (Element) priceNodes.item(p);
+                        double price = 0.0;
+                        String pricestate = priceElement.getAttribute("state");
+                        String pricecurrency = priceElement.getAttribute("currency");
+                        try {
+                            double mult = priceElement.hasAttribute("mult")
+                                    ? Double.parseDouble(priceElement.getAttribute("mult"))
+                                    : 0.01;
+                            int basePrice = Integer.parseInt(priceElement.getTextContent().trim());
+                            price = basePrice * mult;
+                        } catch (NumberFormatException ignored) {
+                        }
+                        boolean vf_item = !(price <= 0.0);
+                        if (price < 0.0) {
+                            logIllegal(product, "Preis ungültig", conn);
+                            continue;
+                        } if (pricecurrency == null || pricecurrency.isEmpty()){
+                            pricecurrency = "EUR";
+                        }
+                        if (pricestate == null || pricestate.isEmpty()) {
+                            pricestate = "Unknown";
+                        }
+                        itemStates.add(new ItemState(price, pricestate, pricecurrency, vf_item));
+                    }
+                    for (int i = 0; i < itemStates.size(); i++) {
+                        ItemState state = itemStates.get(i);
+                        if (!item_status_exists(conn, asin, state.pricestate)) {
+                            PreparedStatement itemstatus = conn.prepareStatement(
+                                "INSERT INTO item_status (asin, item_status, price, currency) VALUES (?, ?, ?, ?)");
+                            itemstatus.setString(1, asin);
+                            itemstatus.setString(2, state.pricestate);
+                            itemstatus.setDouble(3, state.price);
+                            itemstatus.setString(4, state.pricecurrency);
+                            itemstatus.executeUpdate();
+                            System.out.println("ASIN: " + asin + " mit PGROUP: " + pgroup + " Status: " + state.pricestate + " erfolgreich in die Datenbank eingefügt.");
+                        } else {
+                            System.out.println("ASIN: " + asin + " mit PGROUP: " + pgroup + " Status: " + state.pricestate + " bereits in der Datenbank vorhanden.");
+                        }
+
+                        PreparedStatement Verfügbar = conn.prepareStatement(
+                            "INSERT INTO angebot (shop_id, asin, preis, verfuegbar, zustand) VALUES (?, ?, ?, ?, ?)");
+                        Verfügbar.setInt(1, shop_id);
+                        Verfügbar.setString(2, asin);
+                        Verfügbar.setDouble(3, state.price);
+                        Verfügbar.setBoolean(4, state.vf_item);
+                        Verfügbar.setString(5, state.pricestate);
+                        Verfügbar.executeUpdate();
+                    }
+    }
+
+    /**
+     * Protokolliert einen illegalen Zustand eines Produkt-Elements in der Datenbank und gibt eine Fehlermeldung aus.
+     * @param product Das Produkt-Element
+     * @param message Die Fehlermeldung
+     * @param conn Die Datenbankverbindung
+     * @return true, wenn der Preis akzeptiert wird sonst false
+     */
+
+    static boolean LegalPreis (Connection conn, Element product, String asin, int shop_id, String pgroup){
+        class ItemState {
+                        double price;
+                        String pricestate;
+                        String pricecurrency;
+                        boolean vf_item;
+
+                        ItemState(double price, String pricestate, String pricecurrency, boolean vf_item) {
+                            this.price = price;
+                            this.pricestate = pricestate;
+                            this.pricecurrency = pricecurrency;
+                            this.vf_item = vf_item;
+                        }
+                    }
+
+        NodeList priceNodes = product.getElementsByTagName("price");
+        List<ItemState> itemStates = new ArrayList<>();
+        for (int p = 0; p < priceNodes.getLength(); p++) {
+            Element priceElement = (Element) priceNodes.item(p);
+            double price = 0.0;
+            String pricestate = priceElement.getAttribute("state");
+            String pricecurrency = priceElement.getAttribute("currency");
+            try {
+                double mult = priceElement.hasAttribute("mult")
+                    ? Double.parseDouble(priceElement.getAttribute("mult"))
+                    : 0.01;
+                int basePrice = Integer.parseInt(priceElement.getTextContent().trim());
+                price = basePrice * mult;
+            } catch (NumberFormatException ignored) {}
+            boolean vf_item = !(price <= 0.0);
+            if (price < 0.0) {
+                logIllegal(product, "Preis ungültig", conn);
+                continue;
+            } 
+            if (pricecurrency == null || pricecurrency.isEmpty()){
+                pricecurrency = "EUR";
+            }
+            if (pricestate == null || pricestate.isEmpty()) {
+                pricestate = "Unknown";
+            }
+            itemStates.add(new ItemState(price, pricestate, pricecurrency, vf_item));
+        }
+        if (itemStates.isEmpty()) {
+            logIllegal(product, "Kein gültiger Preis gefunden", conn);
+            return false;
+        }
+        return true;
+    }
+    /**
+     * Holt eine Liste von ähnlichen Produkten für ein bestimmtes Produkt-Element.
+     * @param product Das Produkt-Element
+     * @return Eine Liste von Maps, die ASIN und Titel der ähnlichen Produkte enthalten
+     */
 
     public static List<Map<String, String>> getSimilarProducts(Element product) {
         List<Map<String, String>> result = new ArrayList<>();
@@ -1023,11 +939,9 @@ public class ImportRest {
 
     /**
      * Holt den Textinhalt eines bestimmten Tags innerhalb eines Produkt-Elements.
-     * 
      * @param product Das Produkt-Element
      * @param tagName Der Name des Tags
-     * @return Der Textinhalt des Tags oder ein leerer String, wenn der Tag nicht
-     *         gefunden wurde
+     * @return Der Textinhalt des Tags oder ein leerer String, wenn der Tag nicht gefunden wurde
      */
     private static String getTextContent(Element product, String tagName) {
         NodeList list = product.getElementsByTagName(tagName);
@@ -1038,13 +952,10 @@ public class ImportRest {
     }
 
     /**
-     * Holt eine Liste von Attributwerten für ein bestimmtes Tag innerhalb eines
-     * Eltern-Elements.
-     * 
-     * @param parent        Das Eltern-Element
-     * @param tagName       Der Name des Tags
-     * @param attributeName Der Name des Attributs, dessen Werte gesammelt werden
-     *                      sollen
+     * Holt eine Liste von Attributwerten für ein bestimmtes Tag innerhalb eines Eltern-Elements.
+     * @param parent Das Eltern-Element
+     * @param tagName Der Name des Tags
+     * @param attributeName Der Name des Attributs, dessen Werte gesammelt werden sollen
      * @return Eine Liste der Attributwerte
      */
     static List<String> getAttributeList(Element parent, String tagName, String attributeName) {
@@ -1061,20 +972,16 @@ public class ImportRest {
     }
 
     /**
-     * Holt eine Liste von Namen für eine bestimmte Rolle (z.B. "author", "actor")
-     * innerhalb eines Container-Tags.
-     * 
-     * @param product      Das Produkt-Element
+     * Holt eine Liste von Namen für eine bestimmte Rolle (z.B. "author", "actor") innerhalb eines Container-Tags.
+     * @param product Das Produkt-Element
      * @param containerTag Der Name des Container-Tags (z.B. "authors", "actors")
-     * @param elementTag   Der Name des Element-Tags, dessen Namen gesammelt werden
-     *                     sollen (z.B. "author", "actor")
+     * @param elementTag Der Name des Element-Tags, dessen Namen gesammelt werden sollen (z.B. "author", "actor")
      * @return Eine Liste der Namen
      */
     public static List<String> getNamesForRole(Element product, String containerTag, String elementTag) {
         List<String> result = new ArrayList<>();
         NodeList containerNodes = product.getElementsByTagName(containerTag);
-        if (containerNodes.getLength() == 0)
-            return result;
+        if (containerNodes.getLength() == 0) return result;
 
         Element containerElem = (Element) containerNodes.item(0);
         NodeList roleNodes = containerElem.getElementsByTagName(elementTag);
@@ -1089,20 +996,275 @@ public class ImportRest {
     }
 
     /**
-     * Protokolliert einen illegalen Eintrag in der Datenbank.
-     * 
-     * @param product Das Produkt-Element, das den illegalen Eintrag repräsentiert
-     * @param reason  Der Grund, warum der Eintrag als illegal betrachtet wird
-     * @param conn    Die Datenbankverbindung
+     * Erstellt die Datenbanktabellen für den Shop.
+     * @throws SQLException Wenn ein Fehler bei der Erstellung der Tabellen auftritt
      */
+    public static void createDBTables(Connection conn) throws SQLException {
+        Statement stmt = conn.createStatement();
+        stmt.executeUpdate(
+                "DROP TABLE IF EXISTS item_kategorie,item_person,item_label,item_publisher," +
+                "item_studio,item_listmania,similar_product,item_track,track,item_audiotext," +
+                "audiotext,bookspec,musicspec,dvdspec,kategorie,publisher,label,studio,listmania," +
+                "person,illegal_data,item,kunde,bestellung,bestellposition,rezension,angebot,item_status,shop CASCADE;"
+            );
+
+            // Shop
+            stmt.executeUpdate(
+                "CREATE TABLE shop (" +
+                "    shop_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(50) UNIQUE," +
+                "    street VARCHAR(50)," +
+                "    zip VARCHAR(20));"
+            );
+
+            // Item (gemeinsam für Bücher, DVDs, Music)
+            stmt.executeUpdate(
+                "CREATE TABLE item (" +
+                "    shop_id INT REFERENCES shop(shop_id) ON DELETE SET NULL," +
+                "    asin VARCHAR(40) PRIMARY KEY," +
+                "    pgroup VARCHAR(40) NOT NULL CHECK (pgroup IN ('Book', 'DVD', 'Music'))," +
+                "    title TEXT NOT NULL," +
+                "    salesrank INT," +
+                "    picture TEXT," +
+                "    detailpage TEXT," +
+                "    ean VARCHAR(60)," +
+                "    Rating Float Default 0.0," +
+                "    Rating_Counter Int Default 0" +
+                ");"
+            );
+
+            stmt.executeUpdate(
+                "CREATE TABLE item_status ("+ 
+                "    item_status_id SERIAL PRIMARY KEY," +
+                "    asin VARCHAR(40)," +
+                "    item_status VARCHAR(20) NOT NULL," +
+                "    price DECIMAL(5,2) NOT NULL," +
+                "    currency VARCHAR(10) NOT NULL" +
+                ");"
+            );
+
+            // Buch
+            stmt.executeUpdate(
+                "CREATE TABLE bookspec (" +
+                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    binding VARCHAR(80)," +
+                "    edition VARCHAR(80)," +
+                "    isbn VARCHAR(40) NOT NULL," +
+                "    weight VARCHAR(30)," +
+                "    height VARCHAR(30)," +
+                "    length VARCHAR(30)," +
+                "    pages INT," +
+                "    publication_date DATE);"
+            );
+
+            // Musiks
+            stmt.executeUpdate(
+                "CREATE TABLE musicspec (" +
+                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    binding VARCHAR(50)," +
+                "    format VARCHAR(150)," +
+                "    num_discs INT," +
+                "    releasedate DATE," +
+                "    upc VARCHAR(40));"
+            );
+
+            // DVD
+            stmt.executeUpdate(
+                "CREATE TABLE dvdspec (" +
+                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    aspectratio VARCHAR(80)," +
+                "    format VARCHAR(100)," +
+                "    regioncode INT," +
+                "    releasedate DATE," +
+                "    runningtime INT," +
+                "    theatr_release INT," +
+                "    upc VARCHAR(60));"
+            );
+
+            // Tracks (für Music-CDs)
+            stmt.executeUpdate(
+                "CREATE TABLE track (" +
+                "    track_id SERIAL PRIMARY KEY," +
+                "    name TEXT);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_track (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    track_id INT REFERENCES track(track_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, track_id));"
+            );
+
+            // Similar Products
+            stmt.executeUpdate(
+                "CREATE TABLE similar_product (" +
+                "    sim_id SERIAL PRIMARY KEY," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    sim_asin VARCHAR(40));"
+            );
+
+            // Audiotext (Mehrsprachige Angaben)
+            stmt.executeUpdate(
+                "CREATE TABLE audiotext (" +
+                "    audiotext_id SERIAL PRIMARY KEY," +
+                "    lang_type VARCHAR(50)," +
+                "    language VARCHAR(50)," +
+                "    audioformat VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_audiotext (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    audiotext_id INT REFERENCES audiotext(audiotext_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, audiotext_id));"
+            );
+
+            // Publisher
+            stmt.executeUpdate(
+                "CREATE TABLE publisher (" +
+                "    publisher_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_publisher (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    publisher_id INT REFERENCES publisher(publisher_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, publisher_id));"
+            );
+
+            // Label
+            stmt.executeUpdate(
+                "CREATE TABLE label (" +
+                "    label_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_label (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    label_id INT REFERENCES label(label_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, label_id));"
+            );
+
+            // Studio
+            stmt.executeUpdate(
+                "CREATE TABLE studio (" +
+                "    studio_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_studio (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    studio_id INT REFERENCES studio(studio_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, studio_id));"
+            );
+
+            // Listmania
+            stmt.executeUpdate(
+                "CREATE TABLE listmania (" +
+                "    list_id SERIAL PRIMARY KEY," +
+                "    name TEXT);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_listmania (" +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    list_id INT REFERENCES listmania(list_id) ON DELETE CASCADE," +
+                "    PRIMARY KEY (asin, list_id));"
+            );
+
+            // Person rolle nur bei item_person
+            stmt.executeUpdate(
+                "CREATE TABLE person (" +
+                "    person_id SERIAL PRIMARY KEY," +
+                "    name VARCHAR(100));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_person (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    person_id INT REFERENCES person(person_id) ON DELETE CASCADE," +
+                "    person_role VARCHAR(20)," +
+                "    PRIMARY KEY (asin, person_id));"
+            );
+
+            // Kategorie
+            stmt.executeUpdate(
+                "CREATE TABLE kategorie (" +
+                "    kategorie_id SERIAL PRIMARY KEY," +
+                "    name TEXT NOT NULL," +
+                "    eltern_id INT REFERENCES kategorie(kategorie_id) ON DELETE CASCADE);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE item_kategorie (" +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE SET NULL," +
+                "    PRIMARY KEY (asin, kategorie_id));"
+            );
+
+            // Illegal Data
+            stmt.executeUpdate(
+                "CREATE TABLE illegal_data (" +
+                "    illegal_id SERIAL PRIMARY KEY," +
+                "    asin VARCHAR(40)," +
+                "    pgroup VARCHAR(40)," +
+                "    title TEXT," +
+                "    error_message TEXT," +
+                "    import_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+            );
+
+            // Kunden und Bestellungen
+            stmt.executeUpdate(
+                "CREATE TABLE kunde (" +
+                "    kunden_id SERIAL PRIMARY KEY," +
+                "    username TEXT UNIQUE NOT NULL," +
+                "    mail TEXT UNIQUE," +
+                "    adresse TEXT," +
+                "    konto_nr TEXT);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE bestellung (" +
+                "    bestellung_id SERIAL PRIMARY KEY," +
+                "    kunden_id INT REFERENCES kunde(kunden_id) ON DELETE CASCADE," +
+                "    kaufdatum TIMESTAMP);"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE bestellposition (" +
+                "    bestellung_id INT REFERENCES bestellung(bestellung_id) ON DELETE CASCADE," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    PRIMARY KEY (bestellung_id, asin));"
+            );
+            stmt.executeUpdate(
+                "CREATE TABLE rezension (" +
+                "    rezension_id SERIAL PRIMARY KEY," +
+                "    kunden_id INT REFERENCES kunde(kunden_id) ON DELETE CASCADE," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    bewertung INT CHECK (bewertung BETWEEN 1 AND 5)," +
+                "    text TEXT," +
+                "    titel TEXT, "+
+                "    rezensionsdatum TIMESTAMP);"
+            );
+
+
+            stmt.executeUpdate(
+                "CREATE TABLE angebot (" +
+                "    angebot_id Serial Primary Key,"+
+                "    shop_id INT REFERENCES shop(shop_id) ON DELETE CASCADE," +
+                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    preis DECIMAL(5,2)," +
+                "    verfuegbar BOOLEAN," +
+                "    zustand TEXT);"
+            );
+    }
+     
+    /**
+    * Protokolliert einen illegalen Eintrag in der Datenbank.
+    * @param product Das Produkt-Element, das den illegalen Eintrag repräsentiert
+    * @param reason  Der Grund, warum der Eintrag als illegal betrachtet wird
+    * @param conn    Die Datenbankverbindung
+    */
     private static void logIllegal(Element product, String reason, Connection conn) {
         try {
             String asin = product.getAttribute("asin");
             String pgroup = product.getAttribute("pgroup");
             String title = getText(product, "title");
 
-            PreparedStatement stmt = conn.prepareStatement(
-                    "INSERT INTO illegal_data (asin, pgroup, title, error_message) VALUES (?, ?, ?, ?)");
+            PreparedStatement stmt = conn.prepareStatement("INSERT INTO illegal_data (asin, pgroup, title, error_message) VALUES (?, ?, ?, ?)");
             stmt.setString(1, asin.isEmpty() ? null : asin);
             stmt.setString(2, pgroup.isEmpty() ? null : pgroup);
             stmt.setString(3, title.isEmpty() ? null : title);
