@@ -45,23 +45,23 @@ WHERE rn <= 5
 ORDER BY pgroup, rating DESC, rating_counter DESC;
 ```
 
-| pgroup | asin       | rating | rn |
-|--------|------------|--------|----|
-| Book   | 3789105090 | 5.0    | 1  |
-| Book   | 3551354928 | 5.0    | 2  |
-| Book   | 3401053698 | 5.0    | 3  |
-| Book   | 3401027050 | 5.0    | 4  |
-| Book   | 3832712291 | 5.0    | 5  |
-| DVD    | B000BW9BZW | 5.0    | 1  |
-| DVD    | B00062ICW0 | 5.0    | 2  |
-| DVD    | B00006FR4D | 5.0    | 3  |
-| DVD    | B0008Y4J6  | 5.0    | 4  |
-| DVD    | B00005R5VJ | 5.0    | 5  |
-| Music  | B000062V2L | 5.0    | 1  |
-| Music  | B0016OYNW  | 5.0    | 2  |
-| Music  | B0000423X  | 5.0    | 3  |
-| Music  | B00005MFMN | 5.0    | 4  |
-| Music  | B000007TKK | 5.0    | 5  |
+| pgroup | asin       | rating |
+|--------|------------|--------|
+| Book   | 3789105090 | 5.0    |
+| Book   | 3551354928 | 5.0    |
+| Book   | 3401053698 | 5.0    |
+| Book   | 3401027050 | 5.0    |
+| Book   | 3832712291 | 5.0    |
+| DVD    | B000BW9BZW | 5.0    |
+| DVD    | B00062ICW0 | 5.0    |
+| DVD    | B00006FR4D | 5.0    |
+| DVD    | B0008Y4J6  | 5.0    |
+| DVD    | B00005R5VJ | 5.0    |
+| Music  | B000062V2L | 5.0    |
+| Music  | B0016OYNW  | 5.0    |
+| Music  | B0000423X  | 5.0    |
+| Music  | B00005MFMN | 5.0    |
+| Music  | B000007TKK | 5.0    |
 
 
 
