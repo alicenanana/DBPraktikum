@@ -130,7 +130,7 @@ WHERE bewertung = 5;
 ```sql
 SELECT COUNT(*)
 FROM item
-WHERE rating_counter IS NULL;
+WHERE rating_counter = 0;
 ```
 
 ---
