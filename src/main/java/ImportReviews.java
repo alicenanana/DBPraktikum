@@ -103,7 +103,8 @@ public class ImportReviews {
                         stmt.setString(5, text);
                         stmt.setDate(6, rezensionsdatum);
                         stmt.executeUpdate();
-                        System.out.println("✓ Rezension importiert für ASIN " + asin + ", Kunde " + kunden_id);
+                        System.out.println("Rezension importiert für ASIN " + asin + ", Kunde " + kunden_id);
+                        alterRating(conn, asin, bewertung);
                     }
 
                 } catch (Exception e) {
@@ -115,5 +116,83 @@ public class ImportReviews {
             System.err.println("Allgemeiner Fehler beim Import: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+    /**
+     * Aktualisiert das Rating eines Produkts basierend auf der neuen Bewertung.
+     * @param conn   Die Datenbankverbindung.
+     * @param asin   Die ASIN des Produkts.
+     * @param rating Die neue Bewertung.
+     */
+    public static void alterRating(Connection conn, String asin, float rating) {
+        float currentRating = getRatin(conn, asin);
+        int ratingCounter = getRatingCounter(conn, asin);
+        if (currentRating == 0) {
+            currentRating = rating;
+            ratingCounter = 1;
+            System.out.println("Neues Rating: " + rating + ", Aktuelles Rating: " + currentRating + ", Rating Counter: " + ratingCounter + " " + asin);
+        } else {
+            
+            currentRating = (currentRating * ratingCounter + rating) / (ratingCounter+1);
+            ratingCounter++;
+            System.out.println("Neuse Ratin: "+ rating +" Aktuelles Rating: " + currentRating + ", Rating Counter: " + ratingCounter + " " +  asin);
+        } 
+        String sql = "UPDATE item SET Rating = ? WHERE asin = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setFloat(1, currentRating);
+            pstmt.setString(2, asin);
+            pstmt.executeUpdate();
+            System.out.println("Rating aktualisiert für ASIN: " + asin);
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren des Ratings: " + e.getMessage());
+        }
+        try (PreparedStatement pstmt = conn.prepareStatement("UPDATE item SET Rating_Counter = ? WHERE asin = ?")) {
+            pstmt.setInt(1, ratingCounter);
+            pstmt.setString(2, asin);
+            pstmt.executeUpdate();
+            System.out.println("Rating Counter aktualisiert für ASIN: " + asin);
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren des Rating Counters: " + e.getMessage());
+        }
+        
+    }
+
+    /**
+     * Ruft das aktuelle Rating eines Produkts ab.
+     * @param conn Die Datenbankverbindung.
+     * @param asin Die ASIN des Produkts.
+     * @return Das aktuelle Rating oder 0, wenn nicht gefunden.
+     */
+    public static float getRatin(Connection conn, String asin) {
+        String sql = "SELECT Rating FROM item WHERE asin = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, asin);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getFloat("Rating");
+            }
+        } catch (Exception e) {
+            System.err.println("Fehler beim Abrufen des Ratings: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Ruft den Rating Counter eines Produkts ab.
+     * @param conn Die Datenbankverbindung.
+     * @param asin Die ASIN des Produkts.
+     * @return Der Rating Counter oder 0, wenn nicht gefunden.
+     */
+    public static int getRatingCounter(Connection conn, String asin) {
+        String sql = "SELECT Rating_Counter FROM item WHERE asin = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, asin);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("Rating_Counter");
+            }
+        } catch (Exception e) {
+            System.err.println("Fehler beim Abrufen des RatingCounters: " + e.getMessage());
+        }
+        return 0;
     }
 }
