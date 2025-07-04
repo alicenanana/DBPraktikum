@@ -1,35 +1,18 @@
-## 1. Wieviele Produkte jeden Typs (Buch, Musik-CD, DVD) sind in der Datenbank erfasst?
 
-```sql
+--1
 SELECT pgroup AS typ, COUNT(*) AS anzahl
 FROM item
 GROUP BY pgroup;
-```
-| Typ   | Anzahl |
-|-------|--------|
-| DVD   | 436    |
-| Book  | 697    |
-| Music | 1841   |
----
 
-oder 
-
+--1 mit 3 Spalten
 SELECT
   COUNT(CASE WHEN pgroup = 'Book' THEN 1 END) AS book_count,
   COUNT(CASE WHEN pgroup = 'Music' THEN 1 END) AS music_count,
   COUNT(CASE WHEN pgroup = 'DVD' THEN 1 END) AS dvd_count
 FROM item;
 
-| book\_count | music\_count | dvd\_count |
-| ----------- | ------------ | ---------- |
-| 1241        | 945          | 813        |
 
-
-
-## 2. Die 5 besten Produkte jedes Typs sortiert nach durchschnittlichem Rating
-
-
-```sql
+--2
 SELECT pgroup, asin, rating
 FROM (
   SELECT asin, pgroup, rating, rating_counter,
@@ -43,75 +26,36 @@ FROM (
 ) t
 WHERE rn <= 5
 ORDER BY pgroup, rating DESC, rating_counter DESC;
-```
 
-| pgroup | asin       | rating | rn |
-|--------|------------|--------|----|
-| Book   | 3789105090 | 5.0    | 1  |
-| Book   | 3551354928 | 5.0    | 2  |
-| Book   | 3401053698 | 5.0    | 3  |
-| Book   | 3401027050 | 5.0    | 4  |
-| Book   | 3832712291 | 5.0    | 5  |
-| DVD    | B000BW9BZW | 5.0    | 1  |
-| DVD    | B00062ICW0 | 5.0    | 2  |
-| DVD    | B00006FR4D | 5.0    | 3  |
-| DVD    | B0008Y4J6  | 5.0    | 4  |
-| DVD    | B00005R5VJ | 5.0    | 5  |
-| Music  | B000062V2L | 5.0    | 1  |
-| Music  | B0016OYNW  | 5.0    | 2  |
-| Music  | B0000423X  | 5.0    | 3  |
-| Music  | B00005MFMN | 5.0    | 4  |
-| Music  | B000007TKK | 5.0    | 5  |
-
-
-
----
-
-## 3. Für welche Produkte gibt es im Moment kein Angebot?
-
-```sql
+--3
 SELECT asin, title
 FROM item
-WHERE asin NOT IN (SELECT asin FROM angebot WHERE verfuegbar IS TRUE);
-```
+WHERE asin NOT IN (
+  SELECT asin
+  FROM angebot
+  WHERE verfuegbar IS TRUE
+    AND asin IS NOT NULL
+);
 
- #### Für 2148
+Select verfuegbar, Count(*) as vc from Angebot
+Where verfuegbar IS false
+GROUP BY verfuegbar;
 
- ```sql
 SELECT angebot.asin, title
 FROM item
 Join angebot
 ON item.asin = angebot.asin
 WHERE angebot.verfuegbar IS False;
- ```
 
-#### Für 2311
 
----
 
-## 4. Für welche Produkte ist das teuerste Angebot mehr als doppelt so teuer wie das preiswerteste?
-
-```sql
+--4
 SELECT asin, MIN(preis) AS min_preis, MAX(preis) AS max_preis
 FROM angebot
 GROUP BY asin
 HAVING MAX(preis) > 2 * MIN(preis);
-```
 
-#### für Zwei:
-| asin        | min_preis | max_preis |
-|-------------|-----------|-----------|
-| B0007ZOY72  | 0.10      | 7.19      |
-| B00005AT2N  | 7.12      | 17.12     |
-
-
----
-
-## 5. Produkte mit mindestens einer Bewertung 1 und einer Bewertung 5
-
-#### Für 130
-
-```sql
+--5
 SELECT asin
 FROM rezension
 WHERE bewertung = 1
@@ -119,52 +63,20 @@ INTERSECT
 SELECT asin
 FROM rezension
 WHERE bewertung = 5;
-```
 
----
-
-## 6. Für wieviele Produkte gibt es gar keine Rezension?
-
-#### Für 1112
-
-```sql
+--6
 SELECT COUNT(*)
 FROM item
 WHERE rating_counter IS NULL;
-```
 
----
-
-## 7. Rezensenten mit mindestens 10 Rezensionen
-
-#### Es gibt 33 solcher Rezensenten
-
-```sql
+--7
 SELECT k.username
 FROM kunde k
 JOIN rezension r ON k.kunden_id = r.kunden_id
 GROUP BY k.username
 HAVING COUNT(*) >= 10;
-```
 
----
-
-## 8. Alphabetisch sortierte Liste der Buchautoren, die auch an DVDs oder Musik-CDs beteiligt sind
-
-- Ac
-- Al
-- Brun
-- Dav
-- Heino
-- Jürgen
-- Nas
-- Nicole
-- Peter
-- Robin
-- Sandra
-- Va
-
-```sql
+--8
 SELECT DISTINCT p.name
 FROM person p
 JOIN item_person ip_book ON p.person_id = ip_book.person_id
@@ -178,15 +90,9 @@ WHERE i_book.pgroup = 'Book'
       AND i_other.pgroup IN ('DVD', 'Music')
   )
 ORDER BY p.name;
-```
 
----
 
-## 9. Durchschnittliche Anzahl von Liedern einer Musik-CD
-
-#### Im Schnitt 22.0757918552036199 Lieder
-
-```sql
+--9
 SELECT AVG(cnt) AS schnitt
 FROM (
   SELECT it.asin, COUNT(*) AS cnt
@@ -195,15 +101,8 @@ FROM (
   WHERE i.pgroup = 'Music'
   GROUP BY it.asin
 ) t;
-```
 
----
-
-## 10. Produkte mit ähnlichen Produkten in einer anderen Hauptkategorie (rekursiv, PostgreSQL Syntax)
-
-#### 654 Produkte
-
-```sql
+--10
 WITH RECURSIVE hauptkat AS (
   SELECT kategorie_id, name, kategorie_id AS hauptkat_id
   FROM kategorie
@@ -220,29 +119,14 @@ JOIN similar_product sp ON ik1.asin = sp.asin
 JOIN item_kategorie ik2 ON sp.sim_asin = ik2.asin
 JOIN hauptkat h2 ON ik2.kategorie_id = h2.kategorie_id
 WHERE h1.hauptkat_id <> h2.hauptkat_id;
-```
 
----
-
-## 11. Produkte, die in allen Shops angeboten werden
-
-#### Es gibt 103 dieser Produkte
-
-```sql
+--11
 SELECT asin
 FROM angebot
 WHERE verfuegbar IS TRUE
 GROUP BY asin
 HAVING COUNT(DISTINCT shop_id) = (SELECT COUNT(*) FROM shop);
-```
 
----
-
-## 12. In wieviel Prozent der Fälle aus 11 gibt es im Shop 'Leipzig' das preiswerteste Angebot?
-
-#### 49.52%
-
-```sql
 WITH in_alle_shops AS (
   SELECT asin
   FROM angebot
@@ -261,5 +145,3 @@ FROM (
     )
     AND a.asin IN (SELECT asin FROM in_alle_shops)
 ) x;
-```
-
