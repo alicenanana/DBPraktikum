@@ -56,9 +56,12 @@ public class UserInputs {
         if (currentRating == 0) {
             currentRating = rating;
             ratingCounter = 1;
+            System.out.println("Neues Rating: " + rating + ", Aktuelles Rating: " + currentRating + ", Rating Counter: " + ratingCounter + " " + asin);
         } else {
-            currentRating = (currentRating * ratingCounter + rating) / (ratingCounter + 1);
+            
+            currentRating = (currentRating * ratingCounter + rating) / (ratingCounter+1);
             ratingCounter++;
+            System.out.println("Neuse Ratin: "+ rating +" Aktuelles Rating: " + currentRating + ", Rating Counter: " + ratingCounter + " " +  asin);
         } 
         String sql = "UPDATE item SET Rating = ? WHERE asin = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -68,6 +71,14 @@ public class UserInputs {
             System.out.println("Rating aktualisiert für ASIN: " + asin);
         } catch (SQLException e) {
             System.err.println("Fehler beim Aktualisieren des Ratings: " + e.getMessage());
+        }
+        try (PreparedStatement pstmt = conn.prepareStatement("UPDATE item SET Rating_Counter = ? WHERE asin = ?")) {
+            pstmt.setInt(1, ratingCounter);
+            pstmt.setString(2, asin);
+            pstmt.executeUpdate();
+            System.out.println("Rating Counter aktualisiert für ASIN: " + asin);
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren des Rating Counters: " + e.getMessage());
         }
         
     }
@@ -87,12 +98,12 @@ public class UserInputs {
     }
 
     public static int getRatingCounter(Connection conn, String asin) {
-        String sql = "SELECT RatingCounter FROM item WHERE asin = ?";
+        String sql = "SELECT Rating_Counter FROM item WHERE asin = ?";
         try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, asin);
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                return rs.getInt("RatingCounter");
+                return rs.getInt("Rating_Counter");
             }
         } catch (Exception e) {
             System.err.println("Fehler beim Abrufen des RatingCounters: " + e.getMessage());
