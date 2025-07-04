@@ -80,7 +80,7 @@ public class ImportRest {
                 }
                 for (Element product : productList) {
                     String asin = product.getAttribute("asin");
-                    if (asin.isEmpty() || asin.length() > 20) {
+                    if (asin.isEmpty() || asin.length() != 10) {
                         logIllegal(product, "ASIN ungültig oder leer", conn);
                         continue;
                         }
@@ -1027,9 +1027,9 @@ public class ImportRest {
                 "    salesrank INT," +
                 "    picture TEXT," +
                 "    detailpage TEXT," +
-                "    ean VARCHAR(60)" +
-                "    Rating Decimal(1,5)" +
-                "    Rating Counter int" +
+                "    ean VARCHAR(60)," +
+                "    Rating Float Default 0.0," +
+                "    Rating_Counter Int Default 0" +
                 ");"
             );
 
