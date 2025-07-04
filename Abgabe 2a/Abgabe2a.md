@@ -85,7 +85,7 @@ ON item.asin = angebot.asin
 WHERE angebot.verfuegbar IS False;
  ```
 
-#### Für 2311
+#### Für 2310
 
 ---
 
