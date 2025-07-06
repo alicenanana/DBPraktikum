@@ -1,0 +1,17 @@
+Anweisungen zur Integritätssicherung:
+
+1.	Bewertungen müssen im Bereich von 1 bis 5 liegen 
+      → CHECK Constraint in der Tabelle "rezension".
+
+2.	Jeder Nutzername in der Rezensionstabelle muss in der 
+    "kunde"-Tabelle vorhanden sein, genauso wie Gegenstände (deren asin) 
+    in der „Item“-Tabelle sein müssen .
+      → Wird durch die Fremdschlüssel nutzername und asin sichergestellt.
+
+3.	Beim Hinzufügen einer neuen Rezension wird automatisch das Rating des zugehörigen Produkts aktualisiert.
+      → Die Berechnung des neuen Durchschnitts erfolgt durch Trigger
+      → Der aktuelle Durchschnitt und die Anzahl der Bewertungen werden in den Spalten "rating" und "rating_counter" der Tabelle "item" gespeichert.
+
+4.	Rating und Rezension wird auch im Falle einer Löschung angepasst
+      → Im falle das die Rezension gelöscht wird gib es einen weiteren Trigger, welcher wieder den Durchschnitt anpasst
+      → Rezensionen werden durch ON DELETE CASCADE auch gelöscht, wenn der Kunde oder das Item gelöscht wird. Dies führt ebenfalls dazu das im Falle einer Kundenlöschung der Delete Trigger dafür sorgt, dass das Item-rating angepasst wird
