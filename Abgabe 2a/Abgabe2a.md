@@ -1,3 +1,9 @@
+# Aufgabe 2a
+Hinweis: Diese Datei verwendet Markdown-Formatierung zur besseren Lesbarkeit.
+Alle SQL-Statements sind nummeriert und mit Ergebnissen versehen, sofern die Ergebnistabellen überschaubar waren. 
+Bei umfangreicheren Ergebnissen haben wir stattdessen die Anzahl der Datensätze angegeben. 
+Vollständige Ergebnislisten können bei Bedarf nachgereicht werden. Wir sind davon ausgegangen, dass eine vollständige Darstellung in einer Textdatei den Rahmen sprengen würde.
+
 ## 1. Wieviele Produkte jeden Typs (Buch, Musik-CD, DVD) sind in der Datenbank erfasst?
 
 ```sql
@@ -10,15 +16,16 @@ GROUP BY pgroup;
 | DVD   | 436    |
 | Book  | 695    |
 | Music | 1841   |
----
 
-oder 
 
+#### oder in drei Spalten:
+```sql
 SELECT
   COUNT(CASE WHEN pgroup = 'Book' THEN 1 END) AS book_count,
   COUNT(CASE WHEN pgroup = 'Music' THEN 1 END) AS music_count,
   COUNT(CASE WHEN pgroup = 'DVD' THEN 1 END) AS dvd_count
 FROM item;
+```
 
 | book\_count | music\_count | dvd\_count |
 | ----------- | ------------ | ---------- |
@@ -27,7 +34,7 @@ FROM item;
 
 
 ## 2. Die 5 besten Produkte jedes Typs sortiert nach durchschnittlichem Rating
-
+Tie-Break nach rating_counter bei gleicher Bewertung
 
 ```sql
 SELECT pgroup, asin, rating
@@ -44,6 +51,7 @@ FROM (
 WHERE rn <= 5
 ORDER BY pgroup, rating DESC, rating_counter DESC;
 ```
+
 
 | pgroup | asin       | rating |
 |--------|------------|--------|
@@ -68,14 +76,6 @@ ORDER BY pgroup, rating DESC, rating_counter DESC;
 ---
 
 ## 3. Für welche Produkte gibt es im Moment kein Angebot?
-
-```sql
-SELECT asin, title
-FROM item
-WHERE asin NOT IN (SELECT asin FROM angebot WHERE verfuegbar IS TRUE);
-```
-
- #### Für 2148
 
  ```sql
 SELECT angebot.asin, title
@@ -109,8 +109,6 @@ HAVING MAX(preis) > 2 * MIN(preis);
 
 ## 5. Produkte mit mindestens einer Bewertung 1 und einer Bewertung 5
 
-#### Für 130
-
 ```sql
 SELECT asin
 FROM rezension
@@ -121,11 +119,11 @@ FROM rezension
 WHERE bewertung = 5;
 ```
 
+#### 130 Produkte
+
 ---
 
 ## 6. Für wieviele Produkte gibt es gar keine Rezension?
-
-#### Für 1112
 
 ```sql
 SELECT COUNT(*)
@@ -133,11 +131,11 @@ FROM item
 WHERE rating_counter = 0;
 ```
 
+#### Für 1112
+
 ---
 
 ## 7. Rezensenten mit mindestens 10 Rezensionen
-
-#### Es gibt 33 solcher Rezensenten
 
 ```sql
 SELECT k.username
@@ -147,22 +145,11 @@ GROUP BY k.username
 HAVING COUNT(*) >= 10;
 ```
 
+#### Es gibt 33 solcher Rezensenten
+
 ---
 
 ## 8. Alphabetisch sortierte Liste der Buchautoren, die auch an DVDs oder Musik-CDs beteiligt sind
-
-- Ac
-- Al
-- Brun
-- Dav
-- Heino
-- Jürgen
-- Nas
-- Nicole
-- Peter
-- Robin
-- Sandra
-- Va
 
 ```sql
 SELECT DISTINCT p.name
@@ -180,11 +167,22 @@ WHERE i_book.pgroup = 'Book'
 ORDER BY p.name;
 ```
 
+- Ac
+- Al
+- Brun
+- Dav
+- Heino
+- Jürgen
+- Nas
+- Nicole
+- Peter
+- Robin
+- Sandra
+- Va
+
 ---
 
 ## 9. Durchschnittliche Anzahl von Liedern einer Musik-CD
-
-#### Im Schnitt 22.0757918552036199 Lieder
 
 ```sql
 SELECT AVG(cnt) AS schnitt
@@ -197,11 +195,11 @@ FROM (
 ) t;
 ```
 
+#### Im Schnitt 22.1 Lieder
+
 ---
 
 ## 10. Produkte mit ähnlichen Produkten in einer anderen Hauptkategorie (rekursiv, PostgreSQL Syntax)
-
-#### 654 Produkte
 
 ```sql
 WITH RECURSIVE hauptkat AS (
@@ -222,11 +220,11 @@ JOIN hauptkat h2 ON ik2.kategorie_id = h2.kategorie_id
 WHERE h1.hauptkat_id <> h2.hauptkat_id;
 ```
 
+#### 654 Produkte
+
 ---
 
 ## 11. Produkte, die in allen Shops angeboten werden
-
-#### Es gibt 103 dieser Produkte
 
 ```sql
 SELECT asin
@@ -236,11 +234,11 @@ GROUP BY asin
 HAVING COUNT(DISTINCT shop_id) = (SELECT COUNT(*) FROM shop);
 ```
 
+#### Es gibt 103 dieser Produkte
+
 ---
 
 ## 12. In wieviel Prozent der Fälle aus 11 gibt es im Shop 'Leipzig' das preiswerteste Angebot?
-
-#### 49.52%
 
 ```sql
 WITH in_alle_shops AS (
@@ -262,4 +260,6 @@ FROM (
     AND a.asin IN (SELECT asin FROM in_alle_shops)
 ) x;
 ```
+
+#### 49.52%
 
