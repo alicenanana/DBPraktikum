@@ -22,8 +22,8 @@ public class ImportReviews {
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
-        String password = "postgres";
-        String filePath = "media-store/data/reviews.csv";
+        String password = "Robin2504!";
+        String filePath = "data/reviews.csv";
 
         try (Connection conn = DriverManager.getConnection(url, user, password);
                 CSVReader reader = new CSVReader(new FileReader(filePath))) {
@@ -69,7 +69,7 @@ public class ImportReviews {
                     // konto_nr = NULL)
                     if (!kundeExistiert) {
                         try (PreparedStatement insertKunde = conn.prepareStatement(
-                                "INSERT INTO kunde (kunden_id, username) VALUES (?, ?)")) {
+                                "INSERT INTO kunde (kunden_id, username) VALUES (?, ?) ON CONFLICT DO NOTHING")) {
                             insertKunde.setInt(1, kunden_id);
                             insertKunde.setString(2, nutzername);
                             insertKunde.executeUpdate();
@@ -95,19 +95,19 @@ public class ImportReviews {
 
                     // Rezension einfügen
                     try (PreparedStatement stmt = conn.prepareStatement(
-                            "INSERT INTO rezension (kunden_id, asin, bewertung, titel, text, rezensionsdatum) VALUES (?, ?, ?, ?, ?, ?)")) {
-                        stmt.setInt(1, kunden_id);
-                        stmt.setString(2, asin);
-                        stmt.setInt(3, bewertung);
-                        stmt.setString(4, titel);
-                        stmt.setString(5, text);
-                        stmt.setDate(6, rezensionsdatum);
+                            "INSERT INTO rezension (asin, bewertung, text, rezensionsdatum, titel) VALUES (?, ?, ?, ?, ?  ) ON CONFLICT DO NOTHING")) {
+                        stmt.setString(1, asin);
+                        stmt.setInt(2, bewertung);
+                        stmt.setString(3, text);
+                        stmt.setDate(4, rezensionsdatum);
+                        stmt.setString(5, titel);
                         stmt.executeUpdate();
-                        System.out.println("✓ Rezension importiert für ASIN " + asin + ", Kunde " + kunden_id);
+                        System.out.println("Rezension importiert für ASIN " + asin + ", Kunde " + kunden_id);
+                        alterRating(conn, asin, bewertung);
                     }
 
                 } catch (Exception e) {
-                    System.err.println("✗ Fehler in Zeile " + lineNumber + ": " + e.getMessage());
+                    System.err.println("Fehler in Zeile " + lineNumber + ": " + e.getMessage());
                 }
             }
 
@@ -115,5 +115,84 @@ public class ImportReviews {
             System.err.println("Allgemeiner Fehler beim Import: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Aktualisiert das Rating eines Produkts basierend auf der neuen Bewertung.
+     * @param conn   Die Datenbankverbindung.
+     * @param asin   Die ASIN des Produkts.
+     * @param rating Die neue Bewertung.
+     */
+    public static void alterRating(Connection conn, String asin, float rating) {
+        float currentRating = getRatin(conn, asin);
+        int ratingCounter = getRatingCounter(conn, asin);
+        if (currentRating == 0) {
+            currentRating = rating;
+            ratingCounter = 1;
+            System.out.println("Neues Rating: " + rating + ", Aktuelles Rating: " + currentRating + ", Rating Counter: " + ratingCounter + " " + asin);
+        } else {
+            
+            currentRating = (currentRating * ratingCounter + rating) / (ratingCounter+1);
+            ratingCounter++;
+            System.out.println("Neuse Ratin: "+ rating +" Aktuelles Rating: " + currentRating + ", Rating Counter: " + ratingCounter + " " +  asin);
+        } 
+        String sql = "UPDATE item SET Rating = ? WHERE asin = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setFloat(1, currentRating);
+            pstmt.setString(2, asin);
+            pstmt.executeUpdate();
+            System.out.println("Rating aktualisiert für ASIN: " + asin);
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren des Ratings: " + e.getMessage());
+        }
+        try (PreparedStatement pstmt = conn.prepareStatement("UPDATE item SET Rating_Counter = ? WHERE asin = ?")) {
+            pstmt.setInt(1, ratingCounter);
+            pstmt.setString(2, asin);
+            pstmt.executeUpdate();
+            System.out.println("Rating Counter aktualisiert für ASIN: " + asin);
+        } catch (SQLException e) {
+            System.err.println("Fehler beim Aktualisieren des Rating Counters: " + e.getMessage());
+        }
+        
+    }
+
+    /**
+     * Ruft das aktuelle Rating eines Produkts ab.
+     * @param conn Die Datenbankverbindung.
+     * @param asin Die ASIN des Produkts.
+     * @return Das aktuelle Rating oder 0, wenn nicht gefunden.
+     */
+    public static float getRatin(Connection conn, String asin) {
+        String sql = "SELECT Rating FROM item WHERE asin = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, asin);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getFloat("Rating");
+            }
+        } catch (Exception e) {
+            System.err.println("Fehler beim Abrufen des Ratings: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Ruft den Rating Counter eines Produkts ab.
+     * @param conn Die Datenbankverbindung.
+     * @param asin Die ASIN des Produkts.
+     * @return Der Rating Counter oder 0, wenn nicht gefunden.
+     */
+    public static int getRatingCounter(Connection conn, String asin) {
+        String sql = "SELECT Rating_Counter FROM item WHERE asin = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, asin);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt("Rating_Counter");
+            }
+        } catch (Exception e) {
+            System.err.println("Fehler beim Abrufen des RatingCounters: " + e.getMessage());
+        }
+        return 0;
     }
 }
