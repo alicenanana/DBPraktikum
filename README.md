@@ -115,7 +115,7 @@ Für das übergegebene Produkt(Id) werden alle verfügbaren Angebote zurückgeli
 
 ## 6. getSimilarCheaperItems(String asin)
 
-    Eingabe: Eine gültige ASIN, die mindestens eine Kategorie + ein Angebot hat.
+    Eingabe: B00004RDTU
 
     Erwartung: Items aus derselben Kategorie, die einen günstigeren Preis haben als das Original.
 
@@ -142,11 +142,13 @@ Für das übergegebene Produkt(Id) werden alle verfügbaren Angebote zurückgeli
 
 ## 8. getTrolls(double maxAverageRating)
 
-    Eingabe: 2.5
+    Eingabe: 3.8
 
-    Erwartung: Alle Kunden, deren durchschnittliche Bewertung < 2.5 liegt.
+    Erwartung: Alle Kunden, deren durchschnittliche Bewertung < 3.8 liegt.
 
     Gut, wenn du einen Testkunden hast, der nur 1-Sterne-Reviews abgibt.
+
+    Vorzeigekunden: 44 (Bewertung 1 , 4, 5, 5), 46 (Bewertung 2, 2, 2, 2, 5, 5, 5, 5), 66 (Bewertung 1, 1)
 
 ## 9. getOffers(String asin)
 
