@@ -62,7 +62,7 @@ public class Main {
                         }
                     }
                     case 4 -> {
-                        System.out.print("Kategoriepfad (z.B. Musik/Pop): ");
+                        System.out.print("Kategoriepfad: ");
                         String path = sc.nextLine();
                         List<Item> items = svc.getItemsByKategoriePath(path);
                         items.forEach(System.out::println);
