@@ -69,7 +69,7 @@ public class HibernateMediaStoreService implements MediaStoreService {
 }
 
 @Override
-public Kategorie getKategorieTree() {
+public List<Kategorie> getKategorieTree() {
     EntityManager em = emf.createEntityManager();
     try {
         TypedQuery<Kategorie> query = em.createQuery(
@@ -77,14 +77,13 @@ public Kategorie getKategorieTree() {
             Kategorie.class
         );
         List<Kategorie> roots = query.getResultList();
-        if (roots.isEmpty()) return null;
 
-        Kategorie root = roots.get(0);
+        // Für jeden Root-Knoten rekursiv alle Children laden
+        for (Kategorie root : roots) {
+            initializeChildren(root);
+        }
 
-        // Rekursiv children initialisieren
-        initializeChildren(root);
-
-        return root;
+        return roots;
     } finally {
         em.close();
     }
@@ -106,27 +105,49 @@ private void initializeChildren(Kategorie kategorie) {
 public List<Item> getItemsByKategoriePath(String categoryPath) {
     EntityManager em = emf.createEntityManager();
     try {
-        String[] parts = categoryPath.split("/");
+        if (categoryPath == null) return java.util.Collections.emptyList();
+
+        String[] parts = java.util.Arrays.stream(categoryPath.split("/"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toArray(String[]::new);
+
+        if (parts.length == 0) return java.util.Collections.emptyList();
 
         Kategorie current = null;
+
         for (String part : parts) {
-            TypedQuery<Kategorie> query;
-            if (current == null) {
-                query = em.createQuery(
-                    "SELECT k FROM Kategorie k WHERE k.parent IS NULL AND k.name = :name",
-                    Kategorie.class
-                );
-            } else {
-                query = em.createQuery(
-                    "SELECT k FROM Kategorie k WHERE k.parent = :parent AND k.name = :name",
-                    Kategorie.class
-                ).setParameter("parent", current);
+            TypedQuery<Kategorie> q = (current == null)
+                    ? em.createQuery(
+                        "SELECT k FROM Kategorie k " +
+                        "WHERE k.parent IS NULL AND k.name = :name",
+                        Kategorie.class)
+                    : em.createQuery(
+                        "SELECT k FROM Kategorie k " +
+                        "WHERE k.parent = :parent AND k.name = :name",
+                        Kategorie.class)
+                      .setParameter("parent", current);
+
+            java.util.List<Kategorie> matches = q.setParameter("name", part)
+                                                 .setMaxResults(1)
+                                                 .getResultList();
+
+            if (matches.isEmpty()) {
+                return java.util.Collections.emptyList();
             }
-            query.setParameter("name", part);
-            current = query.getSingleResult();
+
+            current = matches.get(0);
         }
 
-        return current.getItems();
+        if (current == null) return java.util.Collections.emptyList();
+
+        return em.createQuery(
+            "SELECT i FROM Item i JOIN i.kategorien k WHERE k = :kategorie",
+            Item.class
+        )
+        .setParameter("kategorie", current)
+        .getResultList();
+
     } finally {
         em.close();
     }
@@ -200,7 +221,8 @@ public void addNewReview(String asin, String kundenId, int rating, String text) 
         Rezension rez = new Rezension();
         rez.setItem(item);
         rez.setKunde(kunde);
-        rez.setBewertung(rating);   // richtiges Feld verwenden
+        rez.setTitel(text);
+        rez.setBewertung(rating);
         rez.setText(text);
         rez.setRezensionsdatum(java.time.LocalDateTime.now());
 

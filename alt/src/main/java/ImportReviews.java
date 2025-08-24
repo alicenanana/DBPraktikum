@@ -95,12 +95,13 @@ public class ImportReviews {
 
                     // Rezension einfügen
                     try (PreparedStatement stmt = conn.prepareStatement(
-                            "INSERT INTO rezension (asin, bewertung, text, rezensionsdatum, titel) VALUES (?, ?, ?, ?, ?  ) ON CONFLICT DO NOTHING")) {
+                            "INSERT INTO rezension (asin, bewertung, text, rezensionsdatum, titel, kunden_id) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING")) {
                         stmt.setString(1, asin);
                         stmt.setInt(2, bewertung);
                         stmt.setString(3, text);
                         stmt.setDate(4, rezensionsdatum);
                         stmt.setString(5, titel);
+                        stmt.setInt(6, kunden_id);
                         stmt.executeUpdate();
                         System.out.println("Rezension importiert für ASIN " + asin + ", Kunde " + kunden_id);
                         alterRating(conn, asin, bewertung);

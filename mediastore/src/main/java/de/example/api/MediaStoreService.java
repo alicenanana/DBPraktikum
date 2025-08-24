@@ -18,7 +18,7 @@ public interface MediaStoreService {
     List<Item> getItems(String pattern);
 
     // Kategorien
-    Kategorie getKategorieTree();
+    List<Kategorie> getKategorieTree();
     List<Item> getItemsByKategoriePath(String categoryPath);
 
     // Top / ähnliche Produkte

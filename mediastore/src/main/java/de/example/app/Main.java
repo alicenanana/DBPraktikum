@@ -56,8 +56,10 @@ public class Main {
                         System.out.println("Gefunden: " + items.size());
                     }
                     case 3 -> {
-                        Kategorie root = svc.getKategorieTree();
-                        printKategorie(root, 0);
+                        List<Kategorie> roots = svc.getKategorieTree();
+                        for (Kategorie root : roots) {
+                            printKategorie(root, 0);
+                        }
                     }
                     case 4 -> {
                         System.out.print("Kategoriepfad (z.B. Musik/Pop): ");
@@ -83,6 +85,8 @@ public class Main {
                         String asin = sc.nextLine();
                         System.out.print("Kunden-ID: ");
                         String kid = sc.nextLine();
+                        System.out.print("Titel: ");
+                        String title = sc.nextLine();
                         System.out.print("Bewertung (1-5): ");
                         int rating = Integer.parseInt(sc.nextLine());
                         System.out.print("Text: ");
