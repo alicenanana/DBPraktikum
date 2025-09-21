@@ -82,6 +82,11 @@ Für das übergegebene Produkt(Id) werden alle verfügbaren Angebote zurückgeli
 
     *Besonderheit: Wenn du nur Enter drückst (also pattern leer) → alle Items werden angezeigt.*
 
+    "Harry%"	Alle Titel, die mit „Harry“ anfangen
+    "%Harry%"	Alle Titel, die irgendwo „Harry“ enthalten
+    "B% Potter"	Titel die mit „B“ beginnen und danach „ Potter“ haben
+    "B00005%"	Alle Items, deren Titel mit „B00005“ beginnen
+
 ## 3. getKategorieTree()
 
     Eingabe: keine.
@@ -94,13 +99,11 @@ Für das übergegebene Produkt(Id) werden alle verfügbaren Angebote zurückgeli
     - Bücher
         - Romane
 
-    ... je nachdem, was du in deiner DB hast.
+
 
 ## 4. getItemsByKategoriePath(String path)
 
-    Eingabe: Musik/Pop
-
-    *Erwartung: Liste aller Items in der Kategorie „Pop“ unter „Musik“.*
+    Eingabe: Features/Alle SACDs
 
     *Wenn Pfad nicht existiert → Exception oder leere Liste.*
 
@@ -126,8 +129,8 @@ Für das übergegebene Produkt(Id) werden alle verfügbaren Angebote zurückgeli
 
     Eingabe:
 
-    ASIN: B00005JPLW
-    Kunden-ID: K123
+    ASIN: B0000668PG
+    Kunden-ID: 123 (Kunden-ID muss numerisch sein)
     Bewertung: 4
     Text: Gute CD!
 
@@ -152,6 +155,8 @@ Für das übergegebene Produkt(Id) werden alle verfügbaren Angebote zurückgeli
 
 ## 9. getOffers(String asin)
 
-    Eingabe: B00005JPLW
+    Eingabe: B0000668PG
+
+    In dem Fall nur ein Angebot.
 
     Erwartung: Liste aller Angebote für dieses Item, z. B. verschiedene Shops mit Preisen.
