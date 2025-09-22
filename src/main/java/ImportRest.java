@@ -29,7 +29,7 @@ public class ImportRest {
     public static void main(String[] args) {
         String url = "jdbc:postgresql://localhost:5432/postgres";
         String user = "postgres";
-        String password = "postgres";
+        String password = "Robin2504!";
 
         try (Connection conn = DriverManager.getConnection(url, user, password)) {                       
             
@@ -179,11 +179,13 @@ public class ImportRest {
                         default:
                             break;
                     }
+
                     String title = getText(product, "title");
                     if (title.isEmpty()) {
                         logIllegal(product, "Titel leer", conn);
                         return;
                     }
+                    
                     String altpgroup = pgroup;
                     if ((title.toLowerCase().contains("audio") || title.toLowerCase().contains("audio-cd")) && !pgroup.equals("Music")) {
                         altpgroup = "Music";
@@ -1024,7 +1026,7 @@ public class ImportRest {
             stmt.executeUpdate(
                 "CREATE TABLE item (" +
                 "    shop_id INT REFERENCES shop(shop_id) ON DELETE SET NULL," +
-                "    asin VARCHAR(40) PRIMARY KEY," +
+                "    asin VARCHAR(20) PRIMARY KEY," +
                 "    pgroup VARCHAR(40) NOT NULL CHECK (pgroup IN ('Book', 'DVD', 'Music'))," +
                 "    title TEXT NOT NULL," +
                 "    salesrank INT," +
@@ -1039,7 +1041,7 @@ public class ImportRest {
             stmt.executeUpdate(
                 "CREATE TABLE item_status ("+ 
                 "    item_status_id SERIAL PRIMARY KEY," +
-                "    asin VARCHAR(40)," +
+                "    asin VARCHAR(20)," +
                 "    item_status VARCHAR(20) NOT NULL," +
                 "    price DECIMAL(5,2) NOT NULL," +
                 "    currency VARCHAR(10) NOT NULL" +
@@ -1049,7 +1051,7 @@ public class ImportRest {
             // Buch
             stmt.executeUpdate(
                 "CREATE TABLE bookspec (" +
-                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
                 "    binding VARCHAR(80)," +
                 "    edition VARCHAR(80)," +
                 "    isbn VARCHAR(40) NOT NULL," +
@@ -1063,7 +1065,7 @@ public class ImportRest {
             // Musiks
             stmt.executeUpdate(
                 "CREATE TABLE musicspec (" +
-                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
                 "    binding VARCHAR(50)," +
                 "    format VARCHAR(150)," +
                 "    num_discs INT," +
@@ -1074,7 +1076,7 @@ public class ImportRest {
             // DVD
             stmt.executeUpdate(
                 "CREATE TABLE dvdspec (" +
-                "    asin VARCHAR(40) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) PRIMARY KEY REFERENCES item(asin) ON DELETE CASCADE," +
                 "    aspectratio VARCHAR(80)," +
                 "    format VARCHAR(100)," +
                 "    regioncode INT," +
@@ -1092,7 +1094,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_track (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    track_id INT REFERENCES track(track_id) ON DELETE CASCADE," +
                 "    PRIMARY KEY (asin, track_id));"
             );
@@ -1101,8 +1103,8 @@ public class ImportRest {
             stmt.executeUpdate(
                 "CREATE TABLE similar_product (" +
                 "    sim_id SERIAL PRIMARY KEY," +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
-                "    sim_asin VARCHAR(40));"
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    sim_asin VARCHAR(20));"
             );
 
             // Audiotext (Mehrsprachige Angaben)
@@ -1115,7 +1117,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_audiotext (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    audiotext_id INT REFERENCES audiotext(audiotext_id) ON DELETE CASCADE," +
                 "    PRIMARY KEY (asin, audiotext_id));"
             );
@@ -1128,7 +1130,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_publisher (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    publisher_id INT REFERENCES publisher(publisher_id) ON DELETE CASCADE," +
                 "    PRIMARY KEY (asin, publisher_id));"
             );
@@ -1141,7 +1143,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_label (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    label_id INT REFERENCES label(label_id) ON DELETE CASCADE," +
                 "    PRIMARY KEY (asin, label_id));"
             );
@@ -1154,7 +1156,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_studio (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    studio_id INT REFERENCES studio(studio_id) ON DELETE CASCADE," +
                 "    PRIMARY KEY (asin, studio_id));"
             );
@@ -1167,7 +1169,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_listmania (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    list_id INT REFERENCES listmania(list_id) ON DELETE CASCADE," +
                 "    PRIMARY KEY (asin, list_id));"
             );
@@ -1180,7 +1182,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_person (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    person_id INT REFERENCES person(person_id) ON DELETE CASCADE," +
                 "    person_role VARCHAR(20)," +
                 "    PRIMARY KEY (asin, person_id));"
@@ -1195,7 +1197,7 @@ public class ImportRest {
             );
             stmt.executeUpdate(
                 "CREATE TABLE item_kategorie (" +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    kategorie_id INT REFERENCES kategorie(kategorie_id) ON DELETE SET NULL," +
                 "    PRIMARY KEY (asin, kategorie_id));"
             );
@@ -1204,7 +1206,7 @@ public class ImportRest {
             stmt.executeUpdate(
                 "CREATE TABLE illegal_data (" +
                 "    illegal_id SERIAL PRIMARY KEY," +
-                "    asin VARCHAR(40)," +
+                "    asin VARCHAR(20)," +
                 "    pgroup VARCHAR(40)," +
                 "    title TEXT," +
                 "    error_message TEXT," +
@@ -1229,14 +1231,14 @@ public class ImportRest {
             stmt.executeUpdate(
                 "CREATE TABLE bestellposition (" +
                 "    bestellung_id INT REFERENCES bestellung(bestellung_id) ON DELETE CASCADE," +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    PRIMARY KEY (bestellung_id, asin));"
             );
             stmt.executeUpdate(
                 "CREATE TABLE rezension (" +
                 "    rezension_id SERIAL PRIMARY KEY," +
                 "    kunden_id INT REFERENCES kunde(kunden_id) ON DELETE CASCADE," +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    bewertung INT CHECK (bewertung BETWEEN 1 AND 5)," +
                 "    text TEXT," +
                 "    titel TEXT, "+
@@ -1248,7 +1250,7 @@ public class ImportRest {
                 "CREATE TABLE angebot (" +
                 "    angebot_id Serial Primary Key,"+
                 "    shop_id INT REFERENCES shop(shop_id) ON DELETE CASCADE," +
-                "    asin VARCHAR(40) REFERENCES item(asin) ON DELETE CASCADE," +
+                "    asin VARCHAR(20) REFERENCES item(asin) ON DELETE CASCADE," +
                 "    preis DECIMAL(5,2)," +
                 "    verfuegbar BOOLEAN," +
                 "    zustand TEXT);"
