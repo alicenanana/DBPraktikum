@@ -155,8 +155,9 @@ Für das übergegebene Produkt(Id) werden alle verfügbaren Angebote zurückgeli
 
 ## 9. getOffers(String asin)
 
-    Eingabe: B0000668PG
+    Eingabe: B0007Z0Y72
 
-    In dem Fall nur ein Angebot.
+
+    In dem Fall 2 Angebote
 
     Erwartung: Liste aller Angebote für dieses Item, z. B. verschiedene Shops mit Preisen.
